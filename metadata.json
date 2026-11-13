@@ -1,0 +1,8 @@
+{
+  "name": "Canon Tether Studio .ipa",
+  "description": "Ứng dụng chụp ảnh tethered không dây qua Canon CCAPI cho các dòng máy Canon EOS R, EOS M, DSLR và PowerShot với xem ảnh tức thì, so sánh A/B và Histogram pixel thực.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

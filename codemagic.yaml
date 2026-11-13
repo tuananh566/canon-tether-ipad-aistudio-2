@@ -1,0 +1,132 @@
+workflows:
+  ios-ipad-workflow:
+    name: Canon Tether Studio (iPadOS IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.canontether.studio"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+        - pattern: master
+          include: true
+          source: true
+    scripts:
+      - name: Install dependencies and build web bundle
+        script: |
+          set -e
+          npm install --legacy-peer-deps
+          npm run build
+      - name: Generate and sync Capacitor iOS project
+        script: |
+          set -e
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+          npx cap sync ios
+      - name: Install CocoaPods dependencies if Podfile exists
+        script: |
+          set -e
+          if [ -f "ios/App/Podfile" ]; then
+            find ios -name "Podfile" -execdir pod install \;
+          fi
+      - name: Configure iPadOS support and Canon CCAPI permissions in Info.plist
+        script: |
+          set -e
+          python3 - <<'PY'
+          import plistlib
+
+          plist_path = "ios/App/App/Info.plist"
+          with open(plist_path, "rb") as f:
+              data = plistlib.load(f)
+
+          # Configure strictly for iPadOS (UIDeviceFamily = 2) with 4-way orientation & multitasking
+          data["CFBundleDisplayName"] = "Canon Tether Studio"
+          data["UIDeviceFamily"] = [2]
+          data["UIRequiresFullScreen"] = False
+          data["UISupportedInterfaceOrientations~ipad"] = [
+              "UIInterfaceOrientationPortrait",
+              "UIInterfaceOrientationPortraitUpsideDown",
+              "UIInterfaceOrientationLandscapeLeft",
+              "UIInterfaceOrientationLandscapeRight",
+          ]
+
+          # Allow HTTP local Wi-Fi connections to Canon CCAPI (e.g. http://192.168.1.2:8080)
+          data["NSAppTransportSecurity"] = {
+              "NSAllowsArbitraryLoads": True,
+              "NSAllowsLocalNetworking": True,
+          }
+
+          # Required iPadOS permission prompts
+          data["NSLocalNetworkUsageDescription"] = (
+              "Canon Tether Studio cần quyền truy cập mạng Wi-Fi cục bộ để kết nối và nhận ảnh từ máy ảnh Canon qua CCAPI."
+          )
+          data["NSPhotoLibraryAddUsageDescription"] = (
+              "Canon Tether Studio cần quyền lưu ảnh chụp từ máy ảnh Canon vào thư viện Ảnh trên iPad."
+          )
+          data["NSPhotoLibraryUsageDescription"] = (
+              "Canon Tether Studio cần quyền chọn ảnh tham chiếu từ thư viện Ảnh trên iPad."
+          )
+
+          with open(plist_path, "wb") as f:
+              plistlib.dump(data, f)
+          print("Updated Info.plist successfully")
+          PY
+      - name: Build unsigned iPadOS IPA
+        script: |
+          set -e
+          BUILD_DIR="$CM_BUILD_DIR/xcode_build"
+          if [ -d "$XCODE_WORKSPACE" ]; then
+            xcodebuild \
+              -workspace "$XCODE_WORKSPACE" \
+              -scheme "$XCODE_SCHEME" \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              TARGETED_DEVICE_FAMILY="2" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              SYMROOT="$BUILD_DIR" \
+              build
+          else
+            xcodebuild \
+              -project "$XCODE_PROJECT" \
+              -scheme "$XCODE_SCHEME" \
+              -configuration Release \
+              -sdk iphoneos \
+              -destination 'generic/platform=iOS' \
+              TARGETED_DEVICE_FAMILY="2" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              SYMROOT="$BUILD_DIR" \
+              build
+          fi
+
+          APP_PATH=$(find "$BUILD_DIR/Release-iphoneos" -maxdepth 2 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: Could not find built .app bundle"
+            exit 1
+          fi
+
+          mkdir -p "$CM_BUILD_DIR/ipa_stage/Payload"
+          mkdir -p "$CM_BUILD_DIR/build/ios/ipa"
+          cp -R "$APP_PATH" "$CM_BUILD_DIR/ipa_stage/Payload/"
+          cd "$CM_BUILD_DIR/ipa_stage"
+          zip -qry "$CM_BUILD_DIR/build/ios/ipa/CanonTetherStudio.ipa" Payload
+          ls -lh "$CM_BUILD_DIR/build/ios/ipa/CanonTetherStudio.ipa"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
