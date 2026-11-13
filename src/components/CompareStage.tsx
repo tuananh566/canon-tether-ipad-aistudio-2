@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Lock, Unlock, Upload, ZoomIn, ZoomOut, RotateCcw, ArrowLeftRight, Download } from 'lucide-react';
+import { Lock, Unlock, Upload, RotateCcw, ArrowLeftRight, Download } from 'lucide-react';
 import { usePinchPan } from '../utils/usePinchPan';
 import type { TetherPhoto } from '../types/tether';
 
@@ -33,10 +33,12 @@ export const CompareStage: React.FC<CompareStageProps> = ({
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    zoomIn,
-    zoomOut,
+    onWheel,
+    onDoubleClick,
     resetView,
   } = usePinchPan(1, 4);
+
+  const isZoomedOrPanned = zoom > 1 || pan.x !== 0 || pan.y !== 0;
 
   const fileInputARef = useRef<HTMLInputElement | null>(null);
   const fileInputBRef = useRef<HTMLInputElement | null>(null);
@@ -129,6 +131,8 @@ export const CompareStage: React.FC<CompareStageProps> = ({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onPointerLeave={onPointerUp}
+          onWheel={onWheel}
+          onDoubleClick={onDoubleClick}
           className={`relative flex-1 min-h-0 flex items-center justify-center bg-[#08080A] overflow-hidden select-none touch-none ${
             zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
           }`}
@@ -181,7 +185,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3 p-3">
+    <div className="flex-1 min-h-0 flex flex-col p-2.5 sm:p-3">
       <input
         ref={fileInputARef}
         type="file"
@@ -205,52 +209,11 @@ export const CompareStage: React.FC<CompareStageProps> = ({
         }}
       />
 
-      {/* Shared Compare Toolbar */}
-      <div className="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-[#121215] border border-white/10">
-        <div className="text-xs text-zinc-400 flex items-center gap-2">
-          <span className="text-zinc-200 font-medium">So sánh đồng bộ 2 khung</span>
-          <span aria-hidden="true">·</span>
-          <span>Bấm chọn khung A hoặc B rồi bấm ảnh ở filmstrip để thay đổi</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={zoomOut}
-            disabled={zoom <= 1}
-            aria-label="Thu nhỏ"
-            className="p-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white disabled:opacity-40 cursor-pointer"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <span className="px-2 text-xs font-mono text-zinc-300 tabular-nums w-12 text-center">
-            {zoom.toFixed(1)}x
-          </span>
-          <button
-            type="button"
-            onClick={zoomIn}
-            disabled={zoom >= 4}
-            aria-label="Phóng to"
-            className="p-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white disabled:opacity-40 cursor-pointer"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={resetView}
-            aria-label="Đặt lại thu phóng"
-            className="p-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Dual Panes with Centered Two-Way Swap */}
+      {/* Expanded Dual Panes with Centered Two-Way Swap & Reset */}
       <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2.5 items-stretch">
         {renderPane('A', photoA)}
 
-        <div className="shrink-0 flex items-center justify-center">
+        <div className="shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
           <button
             type="button"
             onClick={onSwap}
@@ -259,6 +222,21 @@ export const CompareStage: React.FC<CompareStageProps> = ({
             className="w-10 h-10 rounded-full bg-[#18181D] border border-white/15 text-zinc-200 hover:text-white hover:bg-[#222229] hover:border-white/30 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
           >
             <ArrowLeftRight className="w-4 h-4 rotate-90 md:rotate-0 transition-transform" />
+          </button>
+
+          <button
+            type="button"
+            onClick={resetView}
+            disabled={!isZoomedOrPanned}
+            aria-label="Đặt lại"
+            title="Đặt lại"
+            className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${
+              isZoomedOrPanned
+                ? 'bg-white border-white text-zinc-950 hover:bg-zinc-200 shadow-lg cursor-pointer'
+                : 'bg-[#18181D] border-white/10 text-zinc-500 opacity-50 cursor-default'
+            }`}
+          >
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
 

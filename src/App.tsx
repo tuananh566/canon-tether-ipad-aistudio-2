@@ -997,6 +997,9 @@ export default function App() {
       else setCompareB(photo);
     } else {
       setSelectedPhoto(photo);
+      if (activeTab === 'gallery') {
+        setActiveTab('tether');
+      }
     }
   };
 
@@ -1023,7 +1026,7 @@ export default function App() {
               ? ([
                   { id: 'tether', label: 'Tether Studio' },
                   { id: 'compare', label: 'So sánh' },
-                  { id: 'gallery', label: `Thư viện (${photos.length})` },
+                  { id: 'gallery', label: 'Thư viện' },
                 ] as const)
               : ([] as const)
           ).map((item) => {
@@ -1142,53 +1145,59 @@ export default function App() {
           />
         )}
 
-        {/* Bottom Filmstrip (visible in Tether & Compare views when connected) */}
-        {isAppUnlocked && (activeTab === 'tether' || activeTab === 'compare') && (
-          <div className="h-26 shrink-0 border-t border-white/10 bg-[#0E0E11] px-4 py-2 flex items-center gap-3 overflow-x-auto">
-            {photos.map((photo) => {
-              const isSelected = activeTab === 'tether' && selectedPhoto?.id === photo.id;
-              const isA = activeTab === 'compare' && compareA?.id === photo.id;
-              const isB = activeTab === 'compare' && compareB?.id === photo.id;
+        {/* Bottom Filmstrip (visible across Tether, Compare & Gallery tabs) */}
+        {isAppUnlocked &&
+          (activeTab === 'tether' || activeTab === 'compare' || activeTab === 'gallery') && (
+            <div className="relative shrink-0 border-t border-white/10 bg-[#0E0E11]">
+              <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
+                {photos.length} ảnh
+              </div>
+              <div className="h-26 px-4 pr-20 py-2 flex items-center gap-3 overflow-x-auto">
+                {photos.map((photo) => {
+                  const isSelected = activeTab === 'tether' && selectedPhoto?.id === photo.id;
+                  const isA = activeTab === 'compare' && compareA?.id === photo.id;
+                  const isB = activeTab === 'compare' && compareB?.id === photo.id;
 
-              const borderClass = isSelected
-                ? 'border-rose-500'
-                : isA
-                  ? 'border-emerald-500'
-                  : isB
-                    ? 'border-amber-500'
-                    : 'border-white/10 hover:border-white/30';
+                  const borderClass = isSelected
+                    ? 'border-rose-500'
+                    : isA
+                      ? 'border-emerald-500'
+                      : isB
+                        ? 'border-amber-500'
+                        : 'border-white/10 hover:border-white/30';
 
-              return (
-                <button
-                  key={photo.id}
-                  type="button"
-                  onClick={() => handleSelectFilmstrip(photo)}
-                  className={`relative w-28 h-20 shrink-0 rounded-lg overflow-hidden border-2 bg-black transition-colors cursor-pointer ${borderClass}`}
-                >
-                  <img
-                    src={photo.url}
-                    alt={photo.filename}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-1.5 py-0.5 flex items-center justify-between text-[10px] font-mono text-zinc-200">
-                    <span className="truncate">{photo.filename}</span>
-                    <span>{photo.isOriginal ? 'HD' : '⚡'}</span>
-                  </div>
-                  {(isA || isB) && (
-                    <span
-                      className={`absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-bold rounded text-black ${
-                        isA ? 'bg-emerald-400' : 'bg-amber-400'
-                      }`}
+                  return (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      onClick={() => handleSelectFilmstrip(photo)}
+                      className={`relative w-28 h-20 shrink-0 rounded-lg overflow-hidden border-2 bg-black transition-colors cursor-pointer ${borderClass}`}
                     >
-                      {isA && isB ? 'A/B' : isA ? 'A' : 'B'}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+                      <img
+                        src={photo.url}
+                        alt={photo.filename}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-1.5 py-0.5 flex items-center justify-between text-[10px] font-mono text-zinc-200">
+                        <span className="truncate">{photo.filename}</span>
+                        <span>{photo.isOriginal ? 'HD' : '⚡'}</span>
+                      </div>
+                      {(isA || isB) && (
+                        <span
+                          className={`absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-bold rounded text-black ${
+                            isA ? 'bg-emerald-400' : 'bg-amber-400'
+                          }`}
+                        >
+                          {isA && isB ? 'A/B' : isA ? 'A' : 'B'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Subtle Toast Feedback */}

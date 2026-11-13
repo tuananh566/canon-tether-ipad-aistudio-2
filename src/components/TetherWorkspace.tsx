@@ -217,7 +217,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
               <span className="text-xs font-medium text-zinc-400">Số ảnh</span>
               <span className="text-sm font-mono font-semibold text-white tabular-nums">
                 {selectedPhoto && selectedPhotoIndex >= 0
-                  ? `${selectedPhotoIndex + 1} / ${totalPhotos}`
+                  ? `${totalPhotos - selectedPhotoIndex} / ${totalPhotos}`
                   : `${totalPhotos} ảnh`}
               </span>
             </div>
@@ -249,12 +249,12 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-1.5 min-w-0">
-                    <span className="text-zinc-500 shrink-0">Độ K</span>
+                    <span className="text-zinc-500 shrink-0">Tiêu cự</span>
                     <span
                       className="text-zinc-100 truncate"
-                      title={selectedPhoto.exif.whiteBalance}
+                      title={selectedPhoto.exif.focalLength}
                     >
-                      {selectedPhoto.exif.whiteBalance}
+                      {selectedPhoto.exif.focalLength}
                     </span>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  className="min-h-[38px] py-2 px-2.5 text-xs font-medium rounded-lg border border-white/15 text-zinc-300 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap cursor-pointer"
+                  className="min-h-[38px] py-2 px-2.5 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
                 >
                   Hủy
                 </button>
@@ -318,7 +318,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="w-full inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-3 text-xs font-medium rounded-lg border border-white/10 bg-white/5 text-zinc-400 hover:text-rose-400 hover:border-rose-500/40 transition-colors whitespace-nowrap cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-3 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
                 <span>Xoá ảnh này</span>
@@ -374,10 +374,10 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
               onDoubleClick={(e) => e.stopPropagation()}
               onClick={resetView}
               aria-label="Tải lại khung hình"
-              className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-medium rounded-lg bg-[#101013]/90 backdrop-blur-md border border-white/15 text-zinc-100 hover:bg-[#1A1A1F] shadow-xl transition-colors whitespace-nowrap cursor-pointer"
+              title="Tải lại khung hình"
+              className="absolute top-4 left-4 z-10 w-10 h-10 inline-flex items-center justify-center rounded-lg bg-[#101013]/90 backdrop-blur-md border border-white/15 text-zinc-100 hover:bg-[#1A1A1F] shadow-xl transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-              <span>Tải lại</span>
+              <RotateCcw className="w-4 h-4 shrink-0" />
             </button>
           )}
 
