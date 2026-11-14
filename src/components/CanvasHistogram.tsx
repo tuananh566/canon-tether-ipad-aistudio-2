@@ -15,11 +15,16 @@ interface HistogramBuckets {
 interface CanvasHistogramProps {
   imageUrl: string | null;
   onClose?: () => void;
+  embedded?: boolean;
 }
 
 const BINS = 48;
 
-export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({ imageUrl, onClose }) => {
+export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
+  imageUrl,
+  onClose,
+  embedded = false,
+}) => {
   const [channel, setChannel] = useState<ChannelMode>('RGB');
   const [minimized, setMinimized] = useState(false);
   const [data, setData] = useState<HistogramBuckets | null>(null);
@@ -104,7 +109,13 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({ imageUrl, onCl
   if (!imageUrl) return null;
 
   return (
-    <div className="w-64 rounded-lg border border-white/10 bg-[#101013]/92 backdrop-blur-md p-2.5 shadow-xl select-none">
+    <div
+      className={
+        embedded
+          ? 'w-full rounded-xl border border-white/10 bg-[#151519] p-3.5 select-none'
+          : 'w-64 rounded-lg border border-white/10 bg-[#101013]/92 backdrop-blur-md p-2.5 shadow-xl select-none'
+      }
+    >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-200">
           <BarChart3 className="w-3.5 h-3.5 text-zinc-400" />
@@ -130,26 +141,28 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({ imageUrl, onCl
           </div>
         )}
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMinimized((v) => !v)}
-            aria-label={minimized ? 'Mở rộng histogram' : 'Thu gọn histogram'}
-            className="p-1 text-zinc-400 hover:text-white rounded transition-colors cursor-pointer"
-          >
-            {minimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
-          </button>
-          {onClose && (
+        {!embedded && (
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Đóng histogram"
+              onClick={() => setMinimized((v) => !v)}
+              aria-label={minimized ? 'Mở rộng histogram' : 'Thu gọn histogram'}
               className="p-1 text-zinc-400 hover:text-white rounded transition-colors cursor-pointer"
             >
-              <X className="w-3 h-3" />
+              {minimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
             </button>
-          )}
-        </div>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Đóng histogram"
+                className="p-1 text-zinc-400 hover:text-white rounded transition-colors cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {!minimized && (

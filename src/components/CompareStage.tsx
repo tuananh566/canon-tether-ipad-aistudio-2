@@ -36,7 +36,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
     onWheel,
     onDoubleClick,
     resetView,
-  } = usePinchPan(1, 4);
+  } = usePinchPan(1, 20);
 
   const isZoomedOrPanned = zoom > 1 || pan.x !== 0 || pan.y !== 0;
 
@@ -118,7 +118,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
                 className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-rose-600/20 border border-rose-500/40 text-rose-200 hover:bg-rose-600/30 transition-colors whitespace-nowrap cursor-pointer"
               >
                 <Download className="w-3 h-3" />
-                <span>Tải HD</span>
+                <span>Tải file gốc</span>
               </button>
             )}
           </div>

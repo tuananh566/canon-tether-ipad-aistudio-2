@@ -45,48 +45,8 @@ jobs:
           fi
           npx cap sync ios
 
-      - name: Configure iPadOS support & Canon CCAPI network permissions in Info.plist
-        run: |
-          PLIST="ios/App/App/Info.plist"
-          python3 - <<'PY'
-          import plistlib
-
-          plist_path = "ios/App/App/Info.plist"
-          with open(plist_path, "rb") as f:
-              data = plistlib.load(f)
-
-          # Configure strictly for iPadOS (UIDeviceFamily = 2) with 4-way orientation & multitasking
-          data["CFBundleDisplayName"] = "Canon Tether Studio"
-          data["UIDeviceFamily"] = [2]
-          data["UIRequiresFullScreen"] = False
-          data["UISupportedInterfaceOrientations~ipad"] = [
-              "UIInterfaceOrientationPortrait",
-              "UIInterfaceOrientationPortraitUpsideDown",
-              "UIInterfaceOrientationLandscapeLeft",
-              "UIInterfaceOrientationLandscapeRight",
-          ]
-
-          # Allow HTTP local Wi-Fi connections to Canon CCAPI (e.g. http://192.168.1.2:8080)
-          data["NSAppTransportSecurity"] = {
-              "NSAllowsArbitraryLoads": True,
-              "NSAllowsLocalNetworking": True,
-          }
-
-          # Required iPadOS / iOS permission prompts
-          data["NSLocalNetworkUsageDescription"] = (
-              "Canon Tether Studio cần quyền truy cập mạng Wi-Fi cục bộ để kết nối và điều khiển máy ảnh Canon qua CCAPI."
-          )
-          data["NSPhotoLibraryAddUsageDescription"] = (
-              "Canon Tether Studio cần quyền lưu ảnh chụp từ máy ảnh Canon vào thư viện Ảnh trên iPad."
-          )
-          data["NSPhotoLibraryUsageDescription"] = (
-              "Canon Tether Studio cần quyền chọn ảnh tham chiếu từ thư viện Ảnh trên iPad."
-          )
-
-          with open(plist_path, "wb") as f:
-              plistlib.dump(data, f)
-          print("Updated Info.plist successfully")
-          PY
+      - name: Configure iPadOS support, AppIcon & Canon CCAPI permissions
+        run: python3 scripts/configure-ios.py
 
       - name: Build iPadOS App archive (Release, arm64)
         run: |
@@ -98,6 +58,7 @@ jobs:
               -sdk iphoneos \
               -destination 'generic/platform=iOS' \
               TARGETED_DEVICE_FAMILY="2" \
+              INFOPLIST_KEY_CFBundleDisplayName="Canon Tether Studio" \
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
@@ -111,6 +72,7 @@ jobs:
               -sdk iphoneos \
               -destination 'generic/platform=iOS' \
               TARGETED_DEVICE_FAMILY="2" \
+              INFOPLIST_KEY_CFBundleDisplayName="Canon Tether Studio" \
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \

@@ -72,7 +72,7 @@ export async function requestCcapiJson(
     method,
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     data: body,
-    connectTimeout: Math.min(timeoutMs, 12000),
+    connectTimeout: Math.min(timeoutMs, 5000),
     readTimeout: timeoutMs,
   });
 
@@ -83,7 +83,7 @@ export async function requestCcapiJson(
       settled = true;
       signal?.removeEventListener('abort', onAbort);
       reject(new Error('Hết thời gian phản hồi từ máy ảnh Canon'));
-    }, timeoutMs + 500);
+    }, timeoutMs);
 
     const onAbort = () => {
       if (settled) return;

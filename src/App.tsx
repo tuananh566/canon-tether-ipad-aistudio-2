@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { CameraConnectionPopup } from './components/CameraConnectionPopup';
 import { CompareStage } from './components/CompareStage';
 import { ConnectView } from './components/ConnectView';
 import { GalleryModal } from './components/GalleryModal';
@@ -66,7 +67,7 @@ function formatConnectionErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof Error) || !err.message.trim()) return fallback;
   const msg = err.message.trim();
   if (
-    /(failed to fetch|load failed|networkerror|request timed out|timed out|could not connect|connection was lost|appears to be offline|hostname could not be found|nsurlerrordomain|econnrefused|etimedout|ehostunreach|network request failed)/i.test(
+    /(failed to fetch|load failed|networkerror|request timed out|timed out|aborted|hết thời gian phản hồi|could not connect|connection was lost|appears to be offline|hostname could not be found|nsurlerrordomain|econnrefused|etimedout|ehostunreach|network request failed)/i.test(
       msg,
     )
   ) {
@@ -139,17 +140,27 @@ export default function App() {
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
 
   const [photos, setPhotos] = useState<TetherPhoto[]>(INITIAL_STUDIO_SHOTS);
-  const [selectedPhoto, setSelectedPhoto] = useState<TetherPhoto | null>(INITIAL_STUDIO_SHOTS[0]);
-  const [compareA, setCompareA] = useState<TetherPhoto | null>(INITIAL_STUDIO_SHOTS[0]);
-  const [compareB, setCompareB] = useState<TetherPhoto | null>(INITIAL_STUDIO_SHOTS[1]);
+  const [selectedPhoto, setSelectedPhoto] = useState<TetherPhoto | null>(
+    INITIAL_STUDIO_SHOTS[INITIAL_STUDIO_SHOTS.length - 1] ?? null,
+  );
+  const [compareA, setCompareA] = useState<TetherPhoto | null>(
+    INITIAL_STUDIO_SHOTS[INITIAL_STUDIO_SHOTS.length - 1] ?? null,
+  );
+  const [compareB, setCompareB] = useState<TetherPhoto | null>(
+    INITIAL_STUDIO_SHOTS[INITIAL_STUDIO_SHOTS.length - 2] ?? null,
+  );
   const [activeCompareSlot, setActiveCompareSlot] = useState<'A' | 'B'>('A');
   const [lockB, setLockB] = useState(true);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [showCameraPopup, setShowCameraPopup] = useState(false);
 
   const seenCcapiUrlsRef = useRef(new Set<string>());
   const heartbeatFailuresRef = useRef(0);
   const isCheckingConnectionRef = useRef(false);
+  const filmstripRef = useRef<HTMLDivElement | null>(null);
+  const cameraPopupContainerRef = useRef<HTMLDivElement | null>(null);
+  const prevPhotoCountRef = useRef(INITIAL_STUDIO_SHOTS.length);
 
   // Refs synced to latest UI toggles so polling loop never restarts/duplicates
   const lockBRef = useRef(lockB);
@@ -325,7 +336,7 @@ export default function App() {
               sizeLabel,
             };
 
-            setPhotos((prev) => [newPhoto, ...prev]);
+            setPhotos((prev) => [...prev, newPhoto]);
             setSelectedPhoto(newPhoto);
             setCompareA(newPhoto);
             if (!currentLockB) setCompareB(newPhoto);
@@ -466,72 +477,94 @@ export default function App() {
         seenCcapiUrlsRef.current.clear();
       }
 
-      // Step 1: Try discovering exact CCAPI endpoints from /ccapi manifest
-      let discoveredEndpoints: CcapiEndpoints | null = null;
+      const TOTAL_TIMEOUT_MS = 5000;
+      const deadlineAt = Date.now() + TOTAL_TIMEOUT_MS;
+      const probeAbort = new AbortController();
+      const deadlineTimer = setTimeout(() => probeAbort.abort(), TOTAL_TIMEOUT_MS);
+
       try {
-        const manifest = (await callCcapiPath('/ccapi', 'GET', undefined, 6000)) as Record<
-          string,
-          unknown
-        >;
-        if (manifest && typeof manifest === 'object') {
-          discoveredEndpoints = parseCcapiManifest(manifest);
-        }
-      } catch {
-        /* fallback to version probing below */
-      }
-
-      const candidates: CcapiEndpoints[] = discoveredEndpoints
-        ? [discoveredEndpoints]
-        : (['ver100', 'ver110', 'ver120'] as const).map((ver) => ({
-            deviceInfo: `/ccapi/${ver}/deviceinformation`,
-            polling: `/ccapi/${ver}/event/polling`,
-            pollingSupportsContinue: ver !== 'ver100',
-            shutter: `/ccapi/${ver}/shooting/control/shutterbutton`,
-            shutterManual: `/ccapi/${ver}/shooting/control/shutterbutton/manual`,
-            storage: `/ccapi/${ver}/devicestatus/storage`,
-            contents: `/ccapi/${ver}/contents`,
-            wb: `/ccapi/${ver}/shooting/settings/wb`,
-            colorTemp: `/ccapi/${ver}/shooting/settings/colortemperature`,
-          }));
-
-      let lastErr: unknown = null;
-      for (const ep of candidates) {
+        // Step 1: Try discovering exact CCAPI endpoints from /ccapi manifest (max 2.5s of 5s budget)
+        let discoveredEndpoints: CcapiEndpoints | null = null;
         try {
-          const info = (await callCcapiPath(
-            ep.deviceInfo,
+          const manifestTimeout = Math.max(300, Math.min(2500, deadlineAt - Date.now()));
+          const manifest = (await callCcapiPath(
+            '/ccapi',
             'GET',
             undefined,
-            8000,
-          )) as CcapiDeviceInfo;
-          endpointsRef.current = ep;
-          setCcapiEndpoints(ep);
-          setDeviceInfo(info);
-          setConnStatus('connected');
-          setHasUnlockedSession(true);
-          setLastCheckedAt(Date.now());
-          if (!isReconnect) {
-            setActiveTab('tether');
-            showToast(`Đã kết nối ${info.productname || 'máy ảnh Canon'}`);
-            // Baseline existing card files in background so sync only grabs new shots
-            void syncNewestFromStorage(true, ep);
-          } else {
-            showToast(`Đã kết nối lại ${info.productname || 'máy ảnh Canon'}`);
-            void syncNewestFromStorage(false, ep);
+            manifestTimeout,
+            probeAbort.signal,
+          )) as Record<string, unknown>;
+          if (manifest && typeof manifest === 'object') {
+            discoveredEndpoints = parseCcapiManifest(manifest);
           }
-          return;
-        } catch (err: unknown) {
-          lastErr = err;
+        } catch {
+          /* fallback to parallel version probing within remaining 5s budget */
         }
-      }
 
-      setConnStatus('error');
-      const baseErr = formatConnectionErrorMessage(lastErr, '');
-      const errMsg = baseErr
-        ? `${baseErr}. Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.`
-        : 'Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.';
-      setConnError(errMsg);
-      if (isReconnect) {
-        showToast('Không thể kết nối lại máy ảnh Canon');
+        if (probeAbort.signal.aborted) {
+          throw new Error('Hết thời gian phản hồi từ máy ảnh Canon');
+        }
+
+        const candidates: CcapiEndpoints[] = discoveredEndpoints
+          ? [discoveredEndpoints]
+          : (['ver100', 'ver110', 'ver120'] as const).map((ver) => ({
+              deviceInfo: `/ccapi/${ver}/deviceinformation`,
+              polling: `/ccapi/${ver}/event/polling`,
+              pollingSupportsContinue: ver !== 'ver100',
+              shutter: `/ccapi/${ver}/shooting/control/shutterbutton`,
+              shutterManual: `/ccapi/${ver}/shooting/control/shutterbutton/manual`,
+              storage: `/ccapi/${ver}/devicestatus/storage`,
+              contents: `/ccapi/${ver}/contents`,
+              wb: `/ccapi/${ver}/shooting/settings/wb`,
+              colorTemp: `/ccapi/${ver}/shooting/settings/colortemperature`,
+            }));
+
+        const remainingMs = Math.max(250, deadlineAt - Date.now());
+        const { ep, info } = await Promise.any(
+          candidates.map(async (candidate) => {
+            const devInfo = (await callCcapiPath(
+              candidate.deviceInfo,
+              'GET',
+              undefined,
+              remainingMs,
+              probeAbort.signal,
+            )) as CcapiDeviceInfo;
+            return { ep: candidate, info: devInfo };
+          }),
+        );
+
+        endpointsRef.current = ep;
+        setCcapiEndpoints(ep);
+        setDeviceInfo(info);
+        setConnStatus('connected');
+        setHasUnlockedSession(true);
+        setLastCheckedAt(Date.now());
+        if (!isReconnect) {
+          setActiveTab('tether');
+          showToast(`Đã kết nối ${info.productname || 'máy ảnh Canon'}`);
+          // Baseline existing card files in background so sync only grabs new shots
+          void syncNewestFromStorage(true, ep);
+        } else {
+          showToast(`Đã kết nối lại ${info.productname || 'máy ảnh Canon'}`);
+          void syncNewestFromStorage(false, ep);
+        }
+        return;
+      } catch (err: unknown) {
+        const primaryErr =
+          err instanceof AggregateError ? (err.errors?.[0] ?? err) : err;
+        setConnStatus('error');
+        const baseErr = probeAbort.signal.aborted
+          ? ''
+          : formatConnectionErrorMessage(primaryErr, '');
+        const errMsg = baseErr
+          ? `${baseErr}. Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.`
+          : 'Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.';
+        setConnError(errMsg);
+        if (isReconnect) {
+          showToast('Không thể kết nối lại máy ảnh Canon');
+        }
+      } finally {
+        clearTimeout(deadlineTimer);
       }
     },
     [callCcapiPath, cameraIp, cameraPort, showToast, syncNewestFromStorage],
@@ -548,6 +581,7 @@ export default function App() {
 
   const handleDisconnectCcapi = useCallback(() => {
     heartbeatFailuresRef.current = 0;
+    setShowCameraPopup(false);
     setHasUnlockedSession(false);
     setConnStatus('disconnected');
     setDeviceInfo(null);
@@ -720,14 +754,22 @@ export default function App() {
     };
   }, [mode, connStatus, ccapiEndpoints, callCcapiPath, ingestCameraContentPaths, showToast]);
 
-  // ── Keyboard Shortcuts (C = Compare, G = Gallery) ──
+  // ── Keyboard Shortcuts (C = Compare, G = Gallery, ` = Simulate Disconnect) ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!isAppUnlocked) return;
       const target = e.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) {
+        return;
+      }
 
-      if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
+      if ((e.key === '`' || e.code === 'Backquote') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        heartbeatFailuresRef.current = 0;
+        setConnStatus('error');
+        setConnError('Mất kết nối Wi-Fi với máy ảnh Canon');
+        showToast('Mất kết nối với máy ảnh Canon');
+      } else if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
         setActiveTab((t) => (t === 'compare' ? 'tether' : 'compare'));
       } else if (e.key.toLowerCase() === 'g' && !e.metaKey && !e.ctrlKey) {
         setActiveTab((t) => (t === 'gallery' ? 'tether' : 'gallery'));
@@ -735,7 +777,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isAppUnlocked]);
+  }, [isAppUnlocked, showToast]);
 
   const upgradePhotoToOriginal = useCallback(
     async (photo: TetherPhoto): Promise<string> => {
@@ -926,9 +968,9 @@ export default function App() {
   const handleDeletePhoto = (id: string) => {
     setPhotos((prev) => {
       const next = prev.filter((p) => p.id !== id);
-      if (selectedPhoto?.id === id) setSelectedPhoto(next[0] ?? null);
-      if (compareA?.id === id) setCompareA(next[0] ?? null);
-      if (compareB?.id === id) setCompareB(next[1] ?? next[0] ?? null);
+      if (selectedPhoto?.id === id) setSelectedPhoto(next[next.length - 1] ?? null);
+      if (compareA?.id === id) setCompareA(next[next.length - 1] ?? null);
+      if (compareB?.id === id) setCompareB(next[next.length - 2] ?? next[next.length - 1] ?? null);
       return next;
     });
   };
@@ -937,9 +979,13 @@ export default function App() {
     const idSet = new Set(ids);
     setPhotos((prev) => {
       const next = prev.filter((p) => !idSet.has(p.id));
-      if (selectedPhoto && idSet.has(selectedPhoto.id)) setSelectedPhoto(next[0] ?? null);
-      if (compareA && idSet.has(compareA.id)) setCompareA(next[0] ?? null);
-      if (compareB && idSet.has(compareB.id)) setCompareB(next[1] ?? next[0] ?? null);
+      if (selectedPhoto && idSet.has(selectedPhoto.id)) {
+        setSelectedPhoto(next[next.length - 1] ?? null);
+      }
+      if (compareA && idSet.has(compareA.id)) setCompareA(next[next.length - 1] ?? null);
+      if (compareB && idSet.has(compareB.id)) {
+        setCompareB(next[next.length - 2] ?? next[next.length - 1] ?? null);
+      }
       return next;
     });
     showToast(`Đã xoá ${ids.length} ảnh`);
@@ -961,7 +1007,7 @@ export default function App() {
       sizeLabel: formatFileSize(file.size),
     };
 
-    setPhotos((prev) => [imported, ...prev]);
+    setPhotos((prev) => [...prev, imported]);
     if (slot === 'A') setCompareA(imported);
     else setCompareB(imported);
     showToast(`Đã nạp ${file.name} vào khung ${slot}`);
@@ -986,8 +1032,8 @@ export default function App() {
         };
       }),
     );
-    setPhotos((prev) => [...items, ...prev]);
-    if (items[0]) setSelectedPhoto(items[0]);
+    setPhotos((prev) => [...prev, ...items]);
+    if (items[items.length - 1]) setSelectedPhoto(items[items.length - 1]);
     showToast(`Đã thêm ${items.length} ảnh vào thư viện`);
   };
 
@@ -1003,21 +1049,106 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (photos.length > prevPhotoCountRef.current && filmstripRef.current) {
+      filmstripRef.current.scrollTo({
+        left: filmstripRef.current.scrollWidth,
+        behavior: 'smooth',
+      });
+    }
+    prevPhotoCountRef.current = photos.length;
+  }, [photos.length]);
+
+  useEffect(() => {
+    if (!showCameraPopup) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (
+        cameraPopupContainerRef.current &&
+        !cameraPopupContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowCameraPopup(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCameraPopup(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showCameraPopup]);
+
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Top Bar Contract: 3 clean zones separated by gap-8 */}
-      <header className="h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between gap-4 sm:gap-8">
-        {/* Zone 1: Brand Wordmark */}
-        <a
-          href="#connect"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab(isAppUnlocked ? 'tether' : 'connect');
-          }}
-          className="text-base font-display font-bold tracking-tight text-white whitespace-nowrap shrink-0"
-        >
-          Canon Tether Studio
-        </a>
+      <header className="relative z-30 h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between gap-4 sm:gap-8">
+        {/* Zone 1: Brand Wordmark + Camera Name + Camera Info Popup */}
+        <div ref={cameraPopupContainerRef} className="relative flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            aria-expanded={isAppUnlocked ? showCameraPopup : undefined}
+            aria-haspopup={isAppUnlocked ? 'dialog' : undefined}
+            onClick={() => {
+              if (isAppUnlocked) {
+                setShowCameraPopup((prev) => !prev);
+              } else {
+                setActiveTab('connect');
+              }
+            }}
+            className="text-base font-display font-bold tracking-tight text-white hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            Canon Tether Studio
+          </button>
+
+          {isAppUnlocked && (
+            <div
+              aria-hidden={showCameraPopup}
+              className={`flex items-center gap-2.5 min-w-0 ${
+                showCameraPopup ? 'invisible pointer-events-none select-none' : ''
+              }`}
+            >
+              <span className="hidden sm:inline-block h-4 w-px bg-white/15 shrink-0" aria-hidden="true" />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 min-w-0">
+                {connStatus === 'connected' ? (
+                  <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                ) : connStatus === 'connecting' ? (
+                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+                ) : (
+                  <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                )}
+                <span
+                  className="truncate max-w-[100px] sm:max-w-[200px]"
+                  title={deviceInfo?.productname || 'Canon Camera'}
+                >
+                  {deviceInfo?.productname || 'Canon Camera'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isAppUnlocked && showCameraPopup && (
+            <CameraConnectionPopup
+              mode={mode}
+              connStatus={connStatus}
+              connError={connError}
+              cameraIp={cameraIp}
+              cameraPort={cameraPort}
+              checkingConnection={checkingConnection}
+              lastCheckedAt={lastCheckedAt}
+              deviceInfo={deviceInfo}
+              onCheckConnection={handleCheckConnection}
+              onReconnectCcapi={handleReconnectCcapi}
+              onDisconnectCcapi={handleDisconnectCcapi}
+            />
+          )}
+        </div>
 
         {/* Zone 2: Concise single-line navigation links */}
         <nav className="flex items-center gap-6 overflow-x-auto">
@@ -1085,22 +1216,7 @@ export default function App() {
 
         {isAppUnlocked && activeTab === 'tether' && (
           <TetherWorkspace
-            mode={mode}
-            connStatus={connStatus}
-            connError={connError}
-            cameraIp={cameraIp}
-            cameraPort={cameraPort}
-            checkingConnection={checkingConnection}
-            lastCheckedAt={lastCheckedAt}
-            onCheckConnection={handleCheckConnection}
-            onReconnectCcapi={handleReconnectCcapi}
-            onDisconnectCcapi={handleDisconnectCcapi}
-            deviceInfo={deviceInfo}
             selectedPhoto={selectedPhoto}
-            selectedPhotoIndex={
-              selectedPhoto ? photos.findIndex((p) => p.id === selectedPhoto.id) : -1
-            }
-            totalPhotos={photos.length}
             onDownloadOriginal={handleDownloadOriginal}
             onDeletePhoto={handleDeletePhoto}
           />
@@ -1152,8 +1268,11 @@ export default function App() {
               <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
                 {photos.length} ảnh
               </div>
-              <div className="h-26 px-4 pr-20 py-2 flex items-center gap-3 overflow-x-auto">
-                {photos.map((photo) => {
+              <div
+                ref={filmstripRef}
+                className="h-26 px-4 pr-20 py-2 flex items-center gap-3 overflow-x-auto"
+              >
+                {photos.map((photo, index) => {
                   const isSelected = activeTab === 'tether' && selectedPhoto?.id === photo.id;
                   const isA = activeTab === 'compare' && compareA?.id === photo.id;
                   const isB = activeTab === 'compare' && compareB?.id === photo.id;
@@ -1179,13 +1298,16 @@ export default function App() {
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
                       />
+                      <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/75 border border-white/15 text-[10px] font-mono font-semibold text-white tabular-nums">
+                        {index + 1}
+                      </span>
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-1.5 py-0.5 flex items-center justify-between text-[10px] font-mono text-zinc-200">
                         <span className="truncate">{photo.filename}</span>
                         <span>{photo.isOriginal ? 'HD' : '⚡'}</span>
                       </div>
                       {(isA || isB) && (
                         <span
-                          className={`absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-bold rounded text-black ${
+                          className={`absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-bold rounded text-black ${
                             isA ? 'bg-emerald-400' : 'bg-amber-400'
                           }`}
                         >
