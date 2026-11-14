@@ -1151,7 +1151,7 @@ export default function App() {
         </div>
 
         {/* Zone 2: Concise single-line navigation links */}
-        <nav className="flex items-center gap-6 overflow-x-auto">
+        <nav className="h-full flex items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             isAppUnlocked
               ? ([
@@ -1167,13 +1167,13 @@ export default function App() {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`relative py-1 inline-flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`relative h-full inline-flex items-center gap-1.5 text-sm font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive ? 'text-white' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <span>{item.label}</span>
                 {isActive && (
-                  <span className="absolute inset-x-0 -bottom-[15px] h-0.5 bg-rose-500" />
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-rose-500" />
                 )}
               </button>
             );

@@ -297,81 +297,86 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
               return (
                 <div
                   key={photo.id}
-                  className={`group relative rounded-xl bg-[#121216] border overflow-hidden transition-colors ${
+                  className={`group relative aspect-[3/2] rounded-xl bg-black border overflow-hidden transition-colors ${
                     isChecked
                       ? 'border-rose-500 ring-1 ring-rose-500/50'
                       : isCurrent
-                        ? 'border-white/35'
+                        ? 'border-white/40'
                         : 'border-white/10 hover:border-white/25'
                   }`}
                 >
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectionMode || selectedIds.size > 0) {
-                          toggleSelect(photo.id);
-                        } else {
-                          onSelectPhoto(photo);
-                        }
-                      }}
-                      className="relative block w-full aspect-[3/2] bg-black overflow-hidden cursor-pointer"
-                    >
-                      <img
-                        src={photo.url}
-                        alt={photo.filename}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      />
-                    </button>
-
-                    {/* Individual selection checkbox */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!selectionMode) setSelectionMode(true);
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectionMode || selectedIds.size > 0) {
                         toggleSelect(photo.id);
-                      }}
-                      aria-label={isChecked ? `Bỏ chọn ${photo.filename}` : `Chọn ${photo.filename}`}
-                      className={`absolute top-2.5 right-2.5 w-6 h-6 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
-                        isChecked
-                          ? 'bg-rose-600 border-rose-500 text-white'
-                          : 'bg-black/60 border-white/30 text-transparent hover:border-white/70'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      } else {
+                        onSelectPhoto(photo);
+                      }
+                    }}
+                    className="relative block w-full h-full bg-black overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.filename}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    />
+                  </button>
 
-                  <div className="p-2.5 sm:p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-mono font-medium text-zinc-100 truncate">
+                  {/* Individual selection checkbox */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!selectionMode) setSelectionMode(true);
+                      toggleSelect(photo.id);
+                    }}
+                    aria-label={isChecked ? `Bỏ chọn ${photo.filename}` : `Chọn ${photo.filename}`}
+                    className={`absolute top-2.5 right-2.5 z-10 w-6 h-6 rounded-md border backdrop-blur-md flex items-center justify-center transition-colors cursor-pointer ${
+                      isChecked
+                        ? 'bg-rose-600 border-rose-500 text-white'
+                        : 'bg-black/55 border-white/25 text-transparent hover:border-white/70'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Overlaid dark translucent filename/size box & action buttons inside photo frame */}
+                  <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex items-end justify-between gap-2">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="pointer-events-auto min-w-0 overflow-hidden rounded-lg bg-black/65 backdrop-blur-md border border-white/15 px-2.5 py-1.5 shadow-lg"
+                    >
+                      <div className="text-[11px] font-mono font-medium text-zinc-100 truncate leading-tight">
                         {photo.filename}
-                      </span>
-                      <span className="text-[11px] font-mono text-zinc-400 shrink-0 tabular-nums">
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-300/90 tabular-nums leading-tight mt-0.5 truncate">
                         {photo.sizeLabel}
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-end gap-1">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="pointer-events-auto shrink-0 flex items-center gap-1.5"
+                    >
                       {confirmDeleteId === photo.id ? (
-                        <div className="w-full flex items-center justify-end gap-1.5">
+                        <div className="flex items-center gap-1 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 p-1 shadow-lg">
                           <button
                             type="button"
                             onClick={() => {
                               setConfirmDeleteId(null);
                               onDeletePhoto(photo.id);
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-rose-600 hover:bg-rose-500 text-white transition-colors whitespace-nowrap cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" />
-                            <span>Xác nhận xoá</span>
+                            <span>Xoá</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 text-[11px] rounded border border-white/15 text-zinc-300 hover:text-white cursor-pointer"
+                            className="px-2 py-1 text-[11px] rounded-md bg-white/10 hover:bg-white/20 text-zinc-200 transition-colors whitespace-nowrap cursor-pointer"
                           >
                             Hủy
                           </button>
@@ -382,7 +387,8 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                             type="button"
                             onClick={() => onDownloadPhoto(photo)}
                             aria-label={`Tải file gốc ${photo.filename}`}
-                            className="p-1.5 text-zinc-400 hover:text-white rounded hover:bg-white/10 cursor-pointer"
+                            title="Tải file gốc"
+                            className="w-8 h-8 rounded-lg bg-black/65 backdrop-blur-md border border-white/15 text-zinc-200 hover:text-white hover:bg-black/80 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
@@ -390,7 +396,8 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                             type="button"
                             onClick={() => setConfirmDeleteId(photo.id)}
                             aria-label={`Xoá ${photo.filename}`}
-                            className="p-1.5 text-zinc-400 hover:text-rose-400 rounded hover:bg-rose-500/10 cursor-pointer"
+                            title="Xoá ảnh"
+                            className="w-8 h-8 rounded-lg bg-black/65 backdrop-blur-md border border-white/15 text-zinc-200 hover:text-rose-400 hover:bg-black/80 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
