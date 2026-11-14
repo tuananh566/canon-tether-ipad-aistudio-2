@@ -35,7 +35,8 @@ jobs:
 
       - name: Install dependencies & build web bundle
         run: |
-          npm install --legacy-peer-deps
+          rm -f package-lock.json
+          npm install --include=optional --legacy-peer-deps
           npm run build
 
       - name: Generate and sync Capacitor iOS project

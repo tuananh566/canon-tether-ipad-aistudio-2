@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { BarChart3, Minimize2, Maximize2, X } from 'lucide-react';
 
 type ChannelMode = 'RGB' | 'LUMA' | 'R' | 'G' | 'B';
@@ -173,52 +174,63 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
             <div className="absolute inset-y-0 left-3/4 w-px bg-white/5 pointer-events-none" />
 
             {data ? (
-              data.luma.map((_, idx) => {
-                const rH = Math.round(data.r[idx] * 100);
-                const gH = Math.round(data.g[idx] * 100);
-                const bH = Math.round(data.b[idx] * 100);
-                const lH = Math.round(data.luma[idx] * 100);
+              <motion.div
+                initial={{ opacity: 0, scaleY: 0.25 }}
+                animate={{ opacity: 1, scaleY: 1 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full h-full flex items-end gap-[1px] origin-bottom"
+              >
+                {data.luma.map((_, idx) => {
+                  const rH = Math.round(data.r[idx] * 100);
+                  const gH = Math.round(data.g[idx] * 100);
+                  const bH = Math.round(data.b[idx] * 100);
+                  const lH = Math.round(data.luma[idx] * 100);
+                  const delayMs = idx * 4;
 
-                if (channel === 'RGB') {
+                  if (channel === 'RGB') {
+                    return (
+                      <div key={idx} className="relative flex-1 h-full flex items-end">
+                        <div
+                          className="absolute bottom-0 inset-x-0 bg-red-500/45 transition-[height] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                          style={{ height: `${rH}%`, transitionDelay: `${delayMs}ms` }}
+                        />
+                        <div
+                          className="absolute bottom-0 inset-x-0 bg-emerald-500/40 transition-[height] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                          style={{ height: `${gH}%`, transitionDelay: `${delayMs}ms` }}
+                        />
+                        <div
+                          className="absolute bottom-0 inset-x-0 bg-sky-500/45 transition-[height] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                          style={{ height: `${bH}%`, transitionDelay: `${delayMs}ms` }}
+                        />
+                        <div
+                          className="absolute bottom-0 inset-x-0 border-t border-white/75 bg-white/15 transition-[height] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                          style={{ height: `${lH}%`, transitionDelay: `${delayMs}ms` }}
+                        />
+                      </div>
+                    );
+                  }
+
+                  const pct =
+                    channel === 'R' ? rH : channel === 'G' ? gH : channel === 'B' ? bH : lH;
+                  const colorClass =
+                    channel === 'R'
+                      ? 'bg-red-500/80'
+                      : channel === 'G'
+                        ? 'bg-emerald-500/80'
+                        : channel === 'B'
+                          ? 'bg-sky-500/80'
+                          : 'bg-zinc-200/80';
+
                   return (
-                    <div key={idx} className="relative flex-1 h-full flex items-end">
+                    <div key={idx} className="flex-1 h-full flex items-end">
                       <div
-                        className="absolute bottom-0 inset-x-0 bg-red-500/45"
-                        style={{ height: `${rH}%` }}
-                      />
-                      <div
-                        className="absolute bottom-0 inset-x-0 bg-emerald-500/40"
-                        style={{ height: `${gH}%` }}
-                      />
-                      <div
-                        className="absolute bottom-0 inset-x-0 bg-sky-500/45"
-                        style={{ height: `${bH}%` }}
-                      />
-                      <div
-                        className="absolute bottom-0 inset-x-0 border-t border-white/75 bg-white/15"
-                        style={{ height: `${lH}%` }}
+                        className={`w-full rounded-t-[1px] ${colorClass} transition-[height] duration-350 ease-[cubic-bezier(0.22,1,0.36,1)]`}
+                        style={{ height: `${pct}%`, transitionDelay: `${delayMs}ms` }}
                       />
                     </div>
                   );
-                }
-
-                const pct =
-                  channel === 'R' ? rH : channel === 'G' ? gH : channel === 'B' ? bH : lH;
-                const colorClass =
-                  channel === 'R'
-                    ? 'bg-red-500/80'
-                    : channel === 'G'
-                      ? 'bg-emerald-500/80'
-                      : channel === 'B'
-                        ? 'bg-sky-500/80'
-                        : 'bg-zinc-200/80';
-
-                return (
-                  <div key={idx} className="flex-1 h-full flex items-end">
-                    <div className={`w-full rounded-t-[1px] ${colorClass}`} style={{ height: `${pct}%` }} />
-                  </div>
-                );
-              })
+                })}
+              </motion.div>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-[11px] text-zinc-500">
                 Đang phân tích pixel...

@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { Lock, Unlock, Upload, RotateCcw, ArrowLeftRight, Download } from 'lucide-react';
 import { usePinchPan } from '../utils/usePinchPan';
 import type { TetherPhoto } from '../types/tether';
@@ -40,8 +41,16 @@ export const CompareStage: React.FC<CompareStageProps> = ({
 
   const isZoomedOrPanned = zoom > 1 || pan.x !== 0 || pan.y !== 0;
 
+  const [swapCount, setSwapCount] = useState(0);
   const fileInputARef = useRef<HTMLInputElement | null>(null);
   const fileInputBRef = useRef<HTMLInputElement | null>(null);
+
+  const canAnimateSwap = photoA?.id !== photoB?.id;
+
+  const handleSwapClick = () => {
+    setSwapCount((c) => c + 1);
+    onSwap();
+  };
 
   const renderPane = (slot: 'A' | 'B', photo: TetherPhoto | null) => {
     const isActive = activeSlot === slot;
@@ -138,17 +147,24 @@ export const CompareStage: React.FC<CompareStageProps> = ({
           }`}
         >
           {photo ? (
-            <img
-              src={photo.url}
-              alt={photo.filename}
-              referrerPolicy="no-referrer"
-              draggable={false}
-              style={{
-                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                transition: dragging ? 'none' : 'transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-              className="max-w-full max-h-full object-contain pointer-events-none"
-            />
+            <motion.div
+              key={canAnimateSwap ? `swap-${photo.id}` : `slot-${slot}-${photo.id}`}
+              layoutId={canAnimateSwap ? `compare-photo-${photo.id}` : undefined}
+              transition={{ type: 'spring', stiffness: 360, damping: 32, mass: 0.9 }}
+              className="w-full h-full flex items-center justify-center pointer-events-none"
+            >
+              <img
+                src={photo.url}
+                alt={photo.filename}
+                referrerPolicy="no-referrer"
+                draggable={false}
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transition: dragging ? 'none' : 'transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+                className="max-w-full max-h-full object-contain pointer-events-none"
+              />
+            </motion.div>
           ) : (
             <div className="text-center px-6 py-8">
               <p className="text-sm text-zinc-400">Chưa có ảnh ở khung {slot}</p>
@@ -216,12 +232,18 @@ export const CompareStage: React.FC<CompareStageProps> = ({
         <div className="shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
           <button
             type="button"
-            onClick={onSwap}
+            onClick={handleSwapClick}
             aria-label="Đảo ảnh A và B"
             title="Đảo A / B"
             className="w-10 h-10 rounded-full bg-[#18181D] border border-white/15 text-zinc-200 hover:text-white hover:bg-[#222229] hover:border-white/30 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
           >
-            <ArrowLeftRight className="w-4 h-4 rotate-90 md:rotate-0 transition-transform" />
+            <motion.span
+              animate={{ rotate: swapCount * 180 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 24 }}
+              className="inline-flex items-center justify-center"
+            >
+              <ArrowLeftRight className="w-4 h-4 rotate-90 md:rotate-0 transition-transform" />
+            </motion.span>
           </button>
 
           <button

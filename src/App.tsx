@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { CameraConnectionPopup } from './components/CameraConnectionPopup';
 import { CompareStage } from './components/CompareStage';
@@ -1089,8 +1090,8 @@ export default function App() {
     <div className="h-[100dvh] w-screen flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Top Bar Contract: 3 clean zones separated by gap-8 */}
       <header className="relative z-30 h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between gap-4 sm:gap-8">
-        {/* Zone 1: Brand Wordmark + Camera Name + Camera Info Popup */}
-        <div ref={cameraPopupContainerRef} className="relative flex items-center gap-2.5 min-w-0">
+        {/* Zone 1: Unified Brand Wordmark + Camera Name Button + Camera Info Popup */}
+        <div ref={cameraPopupContainerRef} className="relative flex items-center min-w-0">
           <button
             type="button"
             aria-expanded={isAppUnlocked ? showCameraPopup : undefined}
@@ -1102,36 +1103,57 @@ export default function App() {
                 setActiveTab('connect');
               }
             }}
-            className="text-base font-display font-bold tracking-tight text-white hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="group flex items-center gap-2.5 min-w-0 text-left cursor-pointer"
           >
-            Canon Tether Studio
-          </button>
+            <span className="text-base font-display font-bold tracking-tight text-white group-hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+              Canon Tether Studio
+            </span>
 
-          {isAppUnlocked && (
-            <div
-              aria-hidden={showCameraPopup}
-              className={`flex items-center gap-2.5 min-w-0 ${
-                showCameraPopup ? 'invisible pointer-events-none select-none' : ''
-              }`}
-            >
-              <span className="hidden sm:inline-block h-4 w-px bg-white/15 shrink-0" aria-hidden="true" />
-              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 min-w-0">
-                {connStatus === 'connected' ? (
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : connStatus === 'connecting' ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
-                ) : (
-                  <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                )}
+            {isAppUnlocked && (
+              <div className="flex items-center gap-2.5 min-w-0">
                 <span
-                  className="truncate max-w-[100px] sm:max-w-[200px]"
-                  title={deviceInfo?.productname || 'Canon Camera'}
-                >
-                  {deviceInfo?.productname || 'Canon Camera'}
-                </span>
+                  className={`hidden sm:inline-block h-4 w-px bg-white/15 shrink-0 transition-opacity duration-150 ${
+                    showCameraPopup ? 'opacity-0' : 'opacity-100'
+                  }`}
+                  aria-hidden="true"
+                />
+                <div className="relative flex items-center min-w-0">
+                  {/* Preserves header width while camera badge morphs into the popup */}
+                  <div
+                    aria-hidden="true"
+                    className="invisible pointer-events-none select-none flex items-center gap-1.5 px-2 py-1 text-xs font-medium min-w-0"
+                  >
+                    <Wifi className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate max-w-[100px] sm:max-w-[200px]">
+                      {deviceInfo?.productname || 'Canon Camera'}
+                    </span>
+                  </div>
+
+                  {!showCameraPopup && (
+                    <motion.div
+                      layoutId="camera-popup-morph"
+                      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.85 }}
+                      className="absolute inset-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-zinc-300 group-hover:text-white group-hover:bg-white/5 transition-colors min-w-0"
+                    >
+                      {connStatus === 'connected' ? (
+                        <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : connStatus === 'connecting' ? (
+                        <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+                      ) : (
+                        <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      )}
+                      <span
+                        className="truncate max-w-[100px] sm:max-w-[200px]"
+                        title={deviceInfo?.productname || 'Canon Camera'}
+                      >
+                        {deviceInfo?.productname || 'Canon Camera'}
+                      </span>
+                    </motion.div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </button>
 
           {isAppUnlocked && showCameraPopup && (
             <CameraConnectionPopup
@@ -1173,7 +1195,11 @@ export default function App() {
               >
                 <span>{item.label}</span>
                 {isActive && (
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-rose-500" />
+                  <motion.span
+                    layoutId="header-tab-underline"
+                    transition={{ type: 'spring', stiffness: 460, damping: 34, mass: 0.8 }}
+                    className="absolute inset-x-0 bottom-0 h-0.5 bg-rose-500 pointer-events-none"
+                  />
                 )}
               </button>
             );

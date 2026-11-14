@@ -26,7 +26,8 @@ workflows:
       - name: Install dependencies and build web bundle
         script: |
           set -e
-          npm install --legacy-peer-deps
+          rm -f package-lock.json
+          npm install --include=optional --legacy-peer-deps
           npm run build
       - name: Generate and sync Capacitor iOS project
         script: |

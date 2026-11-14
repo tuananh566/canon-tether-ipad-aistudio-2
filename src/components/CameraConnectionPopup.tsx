@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { CcapiDeviceInfo, ConnectionMode, ConnectionStatus } from '../types/tether';
 
@@ -40,10 +41,12 @@ export const CameraConnectionPopup: React.FC<CameraConnectionPopupProps> = ({
     : null;
 
   return (
-    <div
+    <motion.div
+      layoutId="camera-popup-morph"
+      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.85 }}
       role="dialog"
       aria-label="Thông tin kết nối máy ảnh"
-      className={`absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl transition-colors ${
+      className={`absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl overflow-hidden ${
         isConnected
           ? 'bg-[#151519] border-white/15'
           : isReconnecting
@@ -160,6 +163,6 @@ export const CameraConnectionPopup: React.FC<CameraConnectionPopupProps> = ({
           </button>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
