@@ -37,109 +37,6 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col md:flex-row">
-      {/* Left Camera Control Rail */}
-      <aside className="w-full md:w-72 lg:w-76 max-h-[42vh] md:max-h-none shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-[#101013] p-4 overflow-y-auto flex flex-col justify-between gap-4">
-        {/* Upper Half: Embedded Histogram & File Info */}
-        <div className="space-y-3">
-          {/* Embedded Histogram above Photo Info */}
-          <CanvasHistogram imageUrl={selectedPhoto?.url ?? null} embedded />
-
-          {/* Camera File Info below Histogram */}
-          <div className="rounded-xl border border-white/10 bg-[#151519] p-3.5">
-            {selectedPhoto ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2 text-[11px] font-mono tabular-nums">
-                  <span className="text-zinc-200 font-medium truncate" title={selectedPhoto.filename}>
-                    {selectedPhoto.filename}
-                  </span>
-                  <span className="text-zinc-500 shrink-0">
-                    {selectedPhoto.sizeLabel}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs font-mono tabular-nums">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-zinc-500">Khẩu</span>
-                    <span className="text-zinc-100">{selectedPhoto.exif.aperture}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-zinc-500">Tốc</span>
-                    <span className="text-zinc-100">{selectedPhoto.exif.shutterSpeed}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-zinc-500">ISO</span>
-                    <span className="text-zinc-100">
-                      {selectedPhoto.exif.iso.replace(/^ISO\s+/i, '')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5 min-w-0">
-                    <span className="text-zinc-500 shrink-0">Tiêu cự</span>
-                    <span
-                      className="text-zinc-100 truncate"
-                      title={selectedPhoto.exif.focalLength}
-                    >
-                      {selectedPhoto.exif.focalLength}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-[11px] text-zinc-500">
-                Chưa có ảnh được chọn
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Lower Half: Download HD & Delete */}
-        <div className="pt-3 border-t border-white/10 space-y-2.5">
-
-          <button
-            type="button"
-            disabled={!selectedPhoto}
-            onClick={() => selectedPhoto && onDownloadOriginal(selectedPhoto)}
-            className="w-full inline-flex items-center justify-center gap-2 min-h-[42px] py-2.5 px-3 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer"
-          >
-            <Download className="w-4 h-4 shrink-0" />
-            <span>Tải file gốc</span>
-          </button>
-
-          {selectedPhoto && (
-            confirmDelete ? (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDelete(false);
-                    onDeletePhoto(selectedPhoto.id);
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-2.5 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>Xác nhận xoá</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="min-h-[38px] py-2 px-2.5 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  Hủy
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="w-full inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-3 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Xoá ảnh này</span>
-              </button>
-            )
-          )}
-        </div>
-      </aside>
-
       {/* Expanded Darkroom Preview Stage */}
       <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[#08080A]">
         <div
@@ -194,6 +91,108 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
           )}
         </div>
       </main>
+
+      {/* Right Camera Control Rail */}
+      <aside className="w-full md:w-72 lg:w-76 max-h-[42vh] md:max-h-none shrink-0 border-t md:border-t-0 md:border-l border-white/10 bg-[#101013] p-4 overflow-y-auto flex flex-col justify-between gap-4">
+        {/* Upper Half: Embedded Histogram & File Info */}
+        <div className="space-y-3">
+          {/* Embedded Histogram above Photo Info */}
+          <CanvasHistogram imageUrl={selectedPhoto?.url ?? null} embedded />
+
+          {/* Camera File Info below Histogram */}
+          <div className="rounded-xl border border-white/10 bg-[#151519] p-3.5">
+            {selectedPhoto ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 text-[11px] font-mono tabular-nums">
+                  <span className="text-zinc-200 font-medium truncate" title={selectedPhoto.filename}>
+                    {selectedPhoto.filename}
+                  </span>
+                  <span className="text-zinc-500 shrink-0">
+                    {selectedPhoto.sizeLabel}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs font-mono tabular-nums">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-zinc-500">Khẩu</span>
+                    <span className="text-zinc-100">{selectedPhoto.exif.aperture}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-zinc-500">Tốc</span>
+                    <span className="text-zinc-100">{selectedPhoto.exif.shutterSpeed}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-zinc-500">ISO</span>
+                    <span className="text-zinc-100">
+                      {selectedPhoto.exif.iso.replace(/^ISO\s+/i, '')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1.5 min-w-0">
+                    <span className="text-zinc-500 shrink-0">Tiêu cự</span>
+                    <span
+                      className="text-zinc-100 truncate"
+                      title={selectedPhoto.exif.focalLength}
+                    >
+                      {selectedPhoto.exif.focalLength}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-zinc-500">
+                Chưa có ảnh được chọn
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Lower Half: Download Original & Delete */}
+        <div className="pt-3 border-t border-white/10 space-y-2.5">
+          <button
+            type="button"
+            disabled={!selectedPhoto}
+            onClick={() => selectedPhoto && onDownloadOriginal(selectedPhoto)}
+            className="w-full inline-flex items-center justify-center gap-2 min-h-[42px] py-2.5 px-3 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <Download className="w-4 h-4 shrink-0" />
+            <span>Tải file gốc</span>
+          </button>
+
+          {selectedPhoto && (
+            confirmDelete ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    onDeletePhoto(selectedPhoto.id);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-2.5 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Xác nhận xoá</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="min-h-[38px] py-2 px-2.5 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Hủy
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 min-h-[38px] py-2 px-3 text-xs font-medium rounded-lg border bg-zinc-800 border-white/25 text-white hover:bg-zinc-700/80 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Xoá ảnh này</span>
+              </button>
+            )
+          )}
+        </div>
+      </aside>
     </div>
   );
 };

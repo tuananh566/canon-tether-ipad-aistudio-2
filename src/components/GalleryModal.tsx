@@ -3,7 +3,6 @@ import {
   Check,
   CheckCheck,
   CheckSquare,
-  Columns2,
   Download,
   Search,
   Trash2,
@@ -16,7 +15,6 @@ interface GalleryModalProps {
   photos: TetherPhoto[];
   selectedId: string | null;
   onSelectPhoto: (photo: TetherPhoto) => void;
-  onAssignCompare: (slot: 'A' | 'B', photo: TetherPhoto) => void;
   onDeletePhoto: (id: string) => void;
   onBatchDeletePhotos: (ids: string[]) => void;
   onDownloadPhoto: (photo: TetherPhoto) => void;
@@ -28,7 +26,6 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
   photos,
   selectedId,
   onSelectPhoto,
-  onAssignCompare,
   onDeletePhoto,
   onBatchDeletePhotos,
   onDownloadPhoto,
@@ -353,19 +350,11 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                         {photo.filename}
                       </span>
                       <span className="text-[11px] font-mono text-zinc-400 shrink-0 tabular-nums">
-                        {photo.isOriginal ? 'HD' : 'Fast'} · {photo.sizeLabel}
+                        {photo.sizeLabel}
                       </span>
                     </div>
 
-                    <div className="mt-1 flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 tabular-nums truncate">
-                      <span>{photo.exif.iso}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{photo.exif.aperture}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{photo.exif.shutterSpeed}</span>
-                    </div>
-
-                    <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-end gap-1">
                       {confirmDeleteId === photo.id ? (
                         <div className="w-full flex items-center justify-end gap-1.5">
                           <button
@@ -389,43 +378,22 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                         </div>
                       ) : (
                         <>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => onAssignCompare('A', photo)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/20 cursor-pointer"
-                            >
-                              <Columns2 className="w-3 h-3" />
-                              <span>Gán A</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onAssignCompare('B', photo)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20 cursor-pointer"
-                            >
-                              <Columns2 className="w-3 h-3" />
-                              <span>Gán B</span>
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => onDownloadPhoto(photo)}
-                              aria-label={`Tải file gốc ${photo.filename}`}
-                              className="p-1.5 text-zinc-400 hover:text-white rounded hover:bg-white/10 cursor-pointer"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDeleteId(photo.id)}
-                              aria-label={`Xoá ${photo.filename}`}
-                              className="p-1.5 text-zinc-400 hover:text-rose-400 rounded hover:bg-rose-500/10 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onDownloadPhoto(photo)}
+                            aria-label={`Tải file gốc ${photo.filename}`}
+                            className="p-1.5 text-zinc-400 hover:text-white rounded hover:bg-white/10 cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(photo.id)}
+                            aria-label={`Xoá ${photo.filename}`}
+                            className="p-1.5 text-zinc-400 hover:text-rose-400 rounded hover:bg-rose-500/10 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </>
                       )}
                     </div>

@@ -1247,12 +1247,6 @@ export default function App() {
               setSelectedPhoto(photo);
               setActiveTab('tether');
             }}
-            onAssignCompare={(slot, photo) => {
-              if (slot === 'A') setCompareA(photo);
-              else setCompareB(photo);
-              setActiveCompareSlot(slot);
-              setActiveTab('compare');
-            }}
             onDeletePhoto={handleDeletePhoto}
             onBatchDeletePhotos={handleBatchDeletePhotos}
             onDownloadPhoto={handleDownloadOriginal}
@@ -1261,9 +1255,9 @@ export default function App() {
           />
         )}
 
-        {/* Bottom Filmstrip (visible across Tether, Compare & Gallery tabs) */}
+        {/* Bottom Filmstrip (visible on Tether Studio & Compare tabs) */}
         {isAppUnlocked &&
-          (activeTab === 'tether' || activeTab === 'compare' || activeTab === 'gallery') && (
+          (activeTab === 'tether' || activeTab === 'compare') && (
             <div className="relative shrink-0 border-t border-white/10 bg-[#0E0E11]">
               <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
                 {photos.length} ảnh
