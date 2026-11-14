@@ -9,8 +9,8 @@ interface CompareStageProps {
   photoB: TetherPhoto | null;
   activeSlot: 'A' | 'B';
   onSelectSlot: (slot: 'A' | 'B') => void;
-  lockB: boolean;
-  onToggleLockB: () => void;
+  lockedSlot: 'A' | 'B' | null;
+  onToggleLockSlot: (slot: 'A' | 'B') => void;
   onSwap: () => void;
   onImportExternal: (slot: 'A' | 'B', file: File) => void;
   onDownloadOriginal: (photo: TetherPhoto) => void;
@@ -21,8 +21,8 @@ export const CompareStage: React.FC<CompareStageProps> = ({
   photoB,
   activeSlot,
   onSelectSlot,
-  lockB,
-  onToggleLockB,
+  lockedSlot,
+  onToggleLockSlot,
   onSwap,
   onImportExternal,
   onDownloadOriginal,
@@ -63,12 +63,25 @@ export const CompareStage: React.FC<CompareStageProps> = ({
           ? 'border-amber-500/70'
           : 'border-white/10';
 
+    const cardKey = photo ? `card-${photo.id}` : 'card-empty';
+    const isLocked = lockedSlot === slot;
+    const roleLabel = isLocked
+      ? `Ảnh ${slot} · Tham chiếu`
+      : lockedSlot !== null
+        ? `Ảnh ${slot} · Ảnh mới chụp`
+        : `Ảnh ${slot}`;
+
     return (
-      <div
+      <motion.div
+        key={canAnimateSwap ? cardKey : `slot-${slot}-${cardKey}`}
+        layoutId={canAnimateSwap ? `compare-${cardKey}` : undefined}
+        transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 0.9 }}
         onClick={() => onSelectSlot(slot)}
-        className={`relative flex-1 min-w-0 flex flex-col rounded-xl bg-[#111114] border ${borderClass} overflow-hidden transition-colors`}
+        className={`relative flex-1 min-w-0 flex flex-col rounded-xl bg-[#111114] border ${borderClass} overflow-hidden transition-colors shadow-xl ${
+          slot === 'A' ? 'z-20' : 'z-10'
+        }`}
       >
-        {/* Top bar inside pane */}
+        {/* Top bar inside pane (Left stays Ảnh A, Right stays Ảnh B) */}
         <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-[#151519]">
           <div className="flex items-center gap-2 min-w-0">
             <span
@@ -76,7 +89,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
                 slot === 'A' ? 'text-emerald-400' : 'text-amber-400'
               }`}
             >
-              {slot === 'A' ? 'Ảnh A · Ảnh mới chụp' : 'Ảnh B · Tham chiếu'}
+              {roleLabel}
             </span>
             {photo && (
               <span className="text-xs font-mono text-zinc-400 truncate">
@@ -86,23 +99,23 @@ export const CompareStage: React.FC<CompareStageProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {slot === 'B' && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleLockB();
-                }}
-                className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors whitespace-nowrap cursor-pointer ${
-                  lockB
-                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                    : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white'
-                }`}
-              >
-                {lockB ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                <span>{lockB ? 'Đã khóa B' : 'Mở khóa B'}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLockSlot(slot);
+              }}
+              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-colors whitespace-nowrap cursor-pointer ${
+                isLocked
+                  ? slot === 'A'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                    : 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                  : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white'
+              }`}
+            >
+              {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+              <span>{isLocked ? `Đã khóa ${slot}` : `Khóa ${slot}`}</span>
+            </button>
 
             <button
               type="button"
@@ -147,24 +160,17 @@ export const CompareStage: React.FC<CompareStageProps> = ({
           }`}
         >
           {photo ? (
-            <motion.div
-              key={canAnimateSwap ? `swap-${photo.id}` : `slot-${slot}-${photo.id}`}
-              layoutId={canAnimateSwap ? `compare-photo-${photo.id}` : undefined}
-              transition={{ type: 'spring', stiffness: 360, damping: 32, mass: 0.9 }}
-              className="w-full h-full flex items-center justify-center pointer-events-none"
-            >
-              <img
-                src={photo.url}
-                alt={photo.filename}
-                referrerPolicy="no-referrer"
-                draggable={false}
-                style={{
-                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                  transition: dragging ? 'none' : 'transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-                className="max-w-full max-h-full object-contain pointer-events-none"
-              />
-            </motion.div>
+            <img
+              src={photo.url}
+              alt={photo.filename}
+              referrerPolicy="no-referrer"
+              draggable={false}
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transition: dragging ? 'none' : 'transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+              className="max-w-full max-h-full object-contain pointer-events-none"
+            />
           ) : (
             <div className="text-center px-6 py-8">
               <p className="text-sm text-zinc-400">Chưa có ảnh ở khung {slot}</p>
@@ -196,7 +202,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
             <span>Chờ dữ liệu EXIF</span>
           )}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
@@ -229,7 +235,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
       <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2.5 items-stretch">
         {renderPane('A', photoA)}
 
-        <div className="shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
+        <div className="relative z-30 shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
           <button
             type="button"
             onClick={handleSwapClick}

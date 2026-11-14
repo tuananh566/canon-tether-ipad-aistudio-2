@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { CameraConnectionPopup } from './components/CameraConnectionPopup';
 import { CompareStage } from './components/CompareStage';
 import { ConnectView } from './components/ConnectView';
 import { GalleryModal } from './components/GalleryModal';
 import { TetherWorkspace } from './components/TetherWorkspace';
-import { INITIAL_STUDIO_SHOTS } from './data/sampleShots';
+import { INITIAL_STUDIO_SHOTS, SIMULATOR_ROTATION } from './data/sampleShots';
 import type {
   ActiveTab,
   CcapiDeviceInfo,
@@ -151,7 +151,7 @@ export default function App() {
     INITIAL_STUDIO_SHOTS[INITIAL_STUDIO_SHOTS.length - 2] ?? null,
   );
   const [activeCompareSlot, setActiveCompareSlot] = useState<'A' | 'B'>('A');
-  const [lockB, setLockB] = useState(true);
+  const [lockedSlot, setLockedSlot] = useState<'A' | 'B' | null>('B');
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showCameraPopup, setShowCameraPopup] = useState(false);
@@ -162,14 +162,15 @@ export default function App() {
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const cameraPopupContainerRef = useRef<HTMLDivElement | null>(null);
   const prevPhotoCountRef = useRef(INITIAL_STUDIO_SHOTS.length);
+  const simShotCountRef = useRef(0);
 
   // Refs synced to latest UI toggles so polling loop never restarts/duplicates
-  const lockBRef = useRef(lockB);
+  const lockedSlotRef = useRef(lockedSlot);
   const endpointsRef = useRef(ccapiEndpoints);
 
   useEffect(() => {
-    lockBRef.current = lockB;
-  }, [lockB]);
+    lockedSlotRef.current = lockedSlot;
+  }, [lockedSlot]);
   useEffect(() => {
     endpointsRef.current = ccapiEndpoints;
   }, [ccapiEndpoints]);
@@ -222,7 +223,7 @@ export default function App() {
       }
 
       let addedCount = 0;
-      const currentLockB = lockBRef.current;
+      const currentLockedSlot = lockedSlotRef.current;
       const contentsPrefix = endpointsRef.current.contents;
 
       for (const rawPath of rawPaths) {
@@ -339,8 +340,14 @@ export default function App() {
 
             setPhotos((prev) => [...prev, newPhoto]);
             setSelectedPhoto(newPhoto);
-            setCompareA(newPhoto);
-            if (!currentLockB) setCompareB(newPhoto);
+            if (currentLockedSlot === 'A') {
+              setCompareB(newPhoto);
+            } else if (currentLockedSlot === 'B') {
+              setCompareA(newPhoto);
+            } else {
+              setCompareA(newPhoto);
+              setCompareB(newPhoto);
+            }
             showToast(`Đã nhận ${filename} từ máy ảnh Canon`);
           } catch (err: unknown) {
             showToast(err instanceof Error ? err.message : `Không thể tải ${filename} từ máy ảnh`);
@@ -755,7 +762,52 @@ export default function App() {
     };
   }, [mode, connStatus, ccapiEndpoints, callCcapiPath, ingestCameraContentPaths, showToast]);
 
-  // ── Keyboard Shortcuts (C = Compare, G = Gallery, ` = Simulate Disconnect) ──
+  const simulateCameraCapture = useCallback(() => {
+    const idx = simShotCountRef.current;
+    simShotCountRef.current += 1;
+    const template = SIMULATOR_ROTATION[idx % SIMULATOR_ROTATION.length];
+    const shotNum = String(43 + idx).padStart(4, '0');
+    const filename = `IMG_${shotNum}.JPG`;
+    const isos = ['ISO 100', 'ISO 160', 'ISO 200', 'ISO 400'];
+    const apertures = ['f/2.0', 'f/2.8', 'f/4.0', 'f/5.6'];
+    const shutters = ['1/200s', '1/250s', '1/160s', '1/320s'];
+    const wbs = ['5400K Studio', '5200K Daylight', '5600K Flash', '5500K Studio'];
+
+    const newPhoto: TetherPhoto = {
+      id: `sim-${Date.now()}-${idx}-${filename}`,
+      filename,
+      url: template.url,
+      fullUrl: template.url,
+      timestamp: Date.now(),
+      exif: {
+        iso: isos[idx % isos.length],
+        aperture: apertures[idx % apertures.length],
+        shutterSpeed: shutters[idx % shutters.length],
+        focalLength: template.focalLength,
+        lens: template.lens,
+        whiteBalance: wbs[idx % wbs.length],
+      },
+      isFastPreview: false,
+      isOriginal: true,
+      source: 'simulator',
+      sizeLabel: template.sizeLabel,
+    };
+
+    const currentLockedSlot = lockedSlotRef.current;
+    setPhotos((prev) => [...prev, newPhoto]);
+    setSelectedPhoto(newPhoto);
+    if (currentLockedSlot === 'A') {
+      setCompareB(newPhoto);
+    } else if (currentLockedSlot === 'B') {
+      setCompareA(newPhoto);
+    } else {
+      setCompareA(newPhoto);
+      setCompareB(newPhoto);
+    }
+    showToast(`Đã nhận ${filename} từ máy ảnh Canon`);
+  }, [showToast]);
+
+  // ── Keyboard Shortcuts (= = Simulate Capture, C = Compare, G = Gallery, ` = Simulate Disconnect) ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!isAppUnlocked) return;
@@ -764,7 +816,10 @@ export default function App() {
         return;
       }
 
-      if ((e.key === '`' || e.code === 'Backquote') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if ((e.key === '=' || (e.code === 'Equal' && !e.shiftKey)) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        simulateCameraCapture();
+      } else if ((e.key === '`' || e.code === 'Backquote') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         heartbeatFailuresRef.current = 0;
         setConnStatus('error');
@@ -778,7 +833,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isAppUnlocked, showToast]);
+  }, [isAppUnlocked, showToast, simulateCameraCapture]);
 
   const upgradePhotoToOriginal = useCallback(
     async (photo: TetherPhoto): Promise<string> => {
@@ -1088,10 +1143,10 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-      {/* Top Bar Contract: 3 clean zones separated by gap-8 */}
-      <header className="relative z-30 h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between gap-4 sm:gap-8">
-        {/* Zone 1: Unified Brand Wordmark + Camera Name Button + Camera Info Popup */}
-        <div ref={cameraPopupContainerRef} className="relative flex items-center min-w-0">
+      {/* Top Bar Contract: 3 clean zones separated by symmetric grid so Zone 2 never shifts */}
+      <header className="relative z-30 h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 sm:gap-8">
+        {/* Zone 1: Brand Wordmark Button + Static Camera Name + Camera Info Popup */}
+        <div ref={cameraPopupContainerRef} className="relative justify-self-start flex items-center gap-2.5 min-w-0 max-w-full">
           <button
             type="button"
             aria-expanded={isAppUnlocked ? showCameraPopup : undefined}
@@ -1103,77 +1158,63 @@ export default function App() {
                 setActiveTab('connect');
               }
             }}
-            className="group flex items-center gap-2.5 min-w-0 text-left cursor-pointer"
+            className="text-base font-display font-bold tracking-tight text-white hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <span className="text-base font-display font-bold tracking-tight text-white group-hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
-              Canon Tether Studio
-            </span>
-
-            {isAppUnlocked && (
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className={`hidden sm:inline-block h-4 w-px bg-white/15 shrink-0 transition-opacity duration-150 ${
-                    showCameraPopup ? 'opacity-0' : 'opacity-100'
-                  }`}
-                  aria-hidden="true"
-                />
-                <div className="relative flex items-center min-w-0">
-                  {/* Preserves header width while camera badge morphs into the popup */}
-                  <div
-                    aria-hidden="true"
-                    className="invisible pointer-events-none select-none flex items-center gap-1.5 px-2 py-1 text-xs font-medium min-w-0"
-                  >
-                    <Wifi className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate max-w-[100px] sm:max-w-[200px]">
-                      {deviceInfo?.productname || 'Canon Camera'}
-                    </span>
-                  </div>
-
-                  {!showCameraPopup && (
-                    <motion.div
-                      layoutId="camera-popup-morph"
-                      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.85 }}
-                      className="absolute inset-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-zinc-300 group-hover:text-white group-hover:bg-white/5 transition-colors min-w-0"
-                    >
-                      {connStatus === 'connected' ? (
-                        <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      ) : connStatus === 'connecting' ? (
-                        <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
-                      ) : (
-                        <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                      )}
-                      <span
-                        className="truncate max-w-[100px] sm:max-w-[200px]"
-                        title={deviceInfo?.productname || 'Canon Camera'}
-                      >
-                        {deviceInfo?.productname || 'Canon Camera'}
-                      </span>
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            )}
+            Canon Tether Studio
           </button>
 
-          {isAppUnlocked && showCameraPopup && (
-            <CameraConnectionPopup
-              mode={mode}
-              connStatus={connStatus}
-              connError={connError}
-              cameraIp={cameraIp}
-              cameraPort={cameraPort}
-              checkingConnection={checkingConnection}
-              lastCheckedAt={lastCheckedAt}
-              deviceInfo={deviceInfo}
-              onCheckConnection={handleCheckConnection}
-              onReconnectCcapi={handleReconnectCcapi}
-              onDisconnectCcapi={handleDisconnectCcapi}
-            />
+          {isAppUnlocked && (
+            <div
+              aria-hidden={showCameraPopup}
+              className={`flex items-center gap-2.5 min-w-0 transition-opacity duration-150 ${
+                showCameraPopup
+                  ? 'opacity-0 invisible pointer-events-none select-none'
+                  : 'opacity-100'
+              }`}
+            >
+              <span
+                className="hidden sm:inline-block h-4 w-px bg-white/15 shrink-0"
+                aria-hidden="true"
+              />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 min-w-0">
+                {connStatus === 'connected' ? (
+                  <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                ) : connStatus === 'connecting' ? (
+                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+                ) : (
+                  <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                )}
+                <span
+                  className="truncate max-w-[100px] sm:max-w-[200px]"
+                  title={deviceInfo?.productname || 'Canon Camera'}
+                >
+                  {deviceInfo?.productname || 'Canon Camera'}
+                </span>
+              </div>
+            </div>
           )}
+
+          <AnimatePresence>
+            {isAppUnlocked && showCameraPopup && (
+              <CameraConnectionPopup
+                mode={mode}
+                connStatus={connStatus}
+                connError={connError}
+                cameraIp={cameraIp}
+                cameraPort={cameraPort}
+                checkingConnection={checkingConnection}
+                lastCheckedAt={lastCheckedAt}
+                deviceInfo={deviceInfo}
+                onCheckConnection={handleCheckConnection}
+                onReconnectCcapi={handleReconnectCcapi}
+                onDisconnectCcapi={handleDisconnectCcapi}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Zone 2: Concise single-line navigation links */}
-        <nav className="h-full flex items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="justify-self-center h-full flex items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             isAppUnlocked
               ? ([
@@ -1207,7 +1248,7 @@ export default function App() {
         </nav>
 
         {/* Zone 3: 1 Primary Action */}
-        <div className="shrink-0">
+        <div className="justify-self-end shrink-0">
           {isAppUnlocked && connStatus !== 'connected' && (
             <button
               type="button"
@@ -1254,8 +1295,10 @@ export default function App() {
             photoB={compareB}
             activeSlot={activeCompareSlot}
             onSelectSlot={setActiveCompareSlot}
-            lockB={lockB}
-            onToggleLockB={() => setLockB((v) => !v)}
+            lockedSlot={lockedSlot}
+            onToggleLockSlot={(slot) =>
+              setLockedSlot((curr) => (curr === slot ? null : slot))
+            }
             onSwap={() => {
               setCompareA(compareB);
               setCompareB(compareA);

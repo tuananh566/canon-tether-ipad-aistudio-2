@@ -42,11 +42,14 @@ export const CameraConnectionPopup: React.FC<CameraConnectionPopupProps> = ({
 
   return (
     <motion.div
-      layoutId="camera-popup-morph"
-      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.85 }}
+      key="camera-connection-popup"
+      initial={{ opacity: 0, scale: 0.86, y: -6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.86, y: -6 }}
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       role="dialog"
       aria-label="Thông tin kết nối máy ảnh"
-      className={`absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl overflow-hidden ${
+      className={`origin-top-left absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl overflow-hidden ${
         isConnected
           ? 'bg-[#151519] border-white/15'
           : isReconnecting
