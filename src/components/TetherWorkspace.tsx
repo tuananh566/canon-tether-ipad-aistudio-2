@@ -25,6 +25,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
   }, [selectedPhoto?.id]);
 
   const {
+    stageRef,
     zoom,
     pan,
     dragging,
@@ -43,13 +44,14 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
       {/* Expanded Darkroom Preview Stage */}
       <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[#08080A]">
         <div
+          ref={stageRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onPointerLeave={onPointerUp}
           onWheel={onWheel}
           onDoubleClick={onDoubleClick}
+          onContextMenu={(e) => e.preventDefault()}
           className={`relative flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2 sm:p-4 select-none touch-none ${
             zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''
           }`}

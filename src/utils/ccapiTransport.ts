@@ -1,4 +1,4 @@
-import { CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import type { PhotoExif } from '../types/tether';
 import { parseExifFromBlob } from './exifParser';
 
@@ -18,6 +18,14 @@ export interface ResolvedCameraImage {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldUseWebProxy(): boolean {
+  return !Capacitor.isNativePlatform();
+}
+
+function buildProxyUrl(targetUrl: string, timeoutMs: number): string {
+  return `/api/ccapi-proxy?target=${encodeURIComponent(targetUrl)}&timeoutMs=${Math.round(timeoutMs)}`;
 }
 
 function buildImageCandidateUrls(rawUrl: string): string[] {
@@ -56,6 +64,48 @@ function base64ToBlob(base64Data: string, contentType: string): Blob {
   return new Blob([bytes], { type: contentType || 'image/jpeg' });
 }
 
+async function fetchViaWebProxy(
+  targetUrl: string,
+  init: {
+    method?: 'GET' | 'POST';
+    headers?: Record<string, string>;
+    body?: string;
+    timeoutMs: number;
+    signal?: AbortSignal;
+  },
+): Promise<Response> {
+  if (init.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, init.timeoutMs);
+
+  const onExternalAbort = () => controller.abort();
+  init.signal?.addEventListener('abort', onExternalAbort, { once: true });
+
+  try {
+    return await fetch(buildProxyUrl(targetUrl, init.timeoutMs), {
+      method: init.method ?? 'GET',
+      headers: init.headers,
+      body: init.body,
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    if (timedOut) {
+      throw new Error('Hết thời gian phản hồi từ máy ảnh Canon');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', onExternalAbort);
+  }
+}
+
 export async function requestCcapiJson(
   targetUrl: string,
   method: 'GET' | 'POST' = 'GET',
@@ -65,6 +115,38 @@ export async function requestCcapiJson(
 ): Promise<unknown> {
   if (signal?.aborted) {
     throw new DOMException('Aborted', 'AbortError');
+  }
+
+  if (shouldUseWebProxy()) {
+    const res = await fetchViaWebProxy(targetUrl, {
+      method,
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      timeoutMs,
+      signal,
+    });
+
+    const text = await res.text();
+    let parsedData: unknown = text;
+    if (text.trim()) {
+      try {
+        parsedData = JSON.parse(text);
+      } catch {
+        /* leave as string */
+      }
+    }
+
+    if (!res.ok) {
+      const errObj =
+        parsedData && typeof parsedData === 'object' ? (parsedData as Record<string, unknown>) : null;
+      const msg =
+        (typeof errObj?.message === 'string' && errObj.message) ||
+        (typeof errObj?.error === 'string' && errObj.error) ||
+        `CCAPI trả về HTTP ${res.status}`;
+      throw new CcapiHttpError(msg, res.status);
+    }
+
+    return parsedData && typeof parsedData === 'object' ? parsedData : {};
   }
 
   const requestPromise = CapacitorHttp.request({
@@ -134,17 +216,47 @@ export async function requestCcapiJson(
 }
 
 /**
- * Fetches a photo directly from the Canon camera over iPad Wi-Fi using CapacitorHttp
- * with automatic 503/404 busy retries and kind=display fallback, returning a local blob URL and raw Blob.
+ * Fetches a photo from the Canon camera:
+ * - Native iPadOS (.ipa): directly via CapacitorHttp over Wi-Fi
+ * - Web Browser (Chrome/Safari on localhost): via same-origin /api/ccapi-proxy
+ * Includes automatic 503/404 busy retries and kind=display fallback.
  */
 export async function resolveCameraImageUrl(rawCameraUrl: string): Promise<ResolvedCameraImage> {
   const candidates = buildImageCandidateUrls(rawCameraUrl);
   const retryDelays = [350, 550, 800, 1100, 1500];
   let lastError = 'Không thể tải ảnh từ máy ảnh Canon';
+  const useProxy = shouldUseWebProxy();
 
   for (const candidateUrl of candidates) {
     for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
       try {
+        if (useProxy) {
+          const res = await fetchViaWebProxy(candidateUrl, {
+            method: 'GET',
+            timeoutMs: 25000,
+          });
+          if (res.ok) {
+            const blob = await res.blob();
+            if (blob.size > 0) {
+              return {
+                objectUrl: URL.createObjectURL(blob),
+                blob,
+                sizeBytes: blob.size,
+              };
+            }
+          }
+
+          lastError = `Camera trả về HTTP ${res.status}`;
+          if ((res.status === 400 || res.status === 415) && candidateUrl !== candidates[candidates.length - 1]) {
+            break;
+          }
+          if ((res.status === 503 || res.status === 404) && attempt < retryDelays.length) {
+            await sleep(retryDelays[attempt]);
+            continue;
+          }
+          break;
+        }
+
         const res = await CapacitorHttp.get({
           url: candidateUrl,
           responseType: 'blob',
@@ -215,6 +327,18 @@ export async function fetchCameraContentInfo(
  */
 export async function fetchCameraExifSnippet(baseUrl: string): Promise<PhotoExif | null> {
   try {
+    if (shouldUseWebProxy()) {
+      const res = await fetchViaWebProxy(baseUrl, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-65535' },
+        timeoutMs: 6000,
+      });
+      if (res.status !== 206) return null;
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) return null;
+      return parseExifFromBlob(blob);
+    }
+
     const res = await CapacitorHttp.get({
       url: baseUrl,
       headers: { Range: 'bytes=0-65535' },
@@ -239,17 +363,30 @@ export async function fetchCameraExifSnippet(baseUrl: string): Promise<PhotoExif
 }
 
 export async function savePhotoToDevice(url: string, filename: string): Promise<'shared' | 'downloaded'> {
-  if (typeof navigator.share === 'function') {
+  let fetchedBlob: Blob | null = null;
+  const getBlob = async (): Promise<Blob | null> => {
+    if (fetchedBlob) return fetchedBlob;
     try {
       const response = await fetch(url);
-      const blob = await response.blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: filename,
-        });
-        return 'shared';
+      fetchedBlob = await response.blob();
+      return fetchedBlob;
+    } catch {
+      return null;
+    }
+  };
+
+  if (typeof navigator.share === 'function') {
+    try {
+      const blob = await getBlob();
+      if (blob) {
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+          });
+          return 'shared';
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -258,11 +395,27 @@ export async function savePhotoToDevice(url: string, filename: string): Promise<
     }
   }
 
+  let downloadHref = url;
+  let tempObjectUrl: string | null = null;
+  if (!url.startsWith('blob:') && !url.startsWith('data:')) {
+    const blob = await getBlob();
+    if (blob) {
+      tempObjectUrl = URL.createObjectURL(blob);
+      downloadHref = tempObjectUrl;
+    }
+  }
+
   const link = document.createElement('a');
-  link.href = url;
+  link.href = downloadHref;
   link.download = filename;
+  link.rel = 'noopener';
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  if (tempObjectUrl) {
+    setTimeout(() => URL.revokeObjectURL(tempObjectUrl!), 15000);
+  }
   return 'downloaded';
 }

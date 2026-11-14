@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronUp, Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { CameraConnectionPopup } from './components/CameraConnectionPopup';
@@ -625,9 +626,17 @@ export default function App() {
         const baseErr = probeAbort.signal.aborted
           ? ''
           : formatConnectionErrorMessage(primaryErr, '');
-        const errMsg = baseErr
-          ? `${baseErr}. Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.`
-          : 'Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.';
+        const isRemoteCloudHost =
+          typeof window !== 'undefined' &&
+          !Capacitor.isNativePlatform() &&
+          window.location.protocol === 'https:' &&
+          window.location.hostname !== 'localhost' &&
+          window.location.hostname !== '127.0.0.1';
+        const errMsg = isRemoteCloudHost
+          ? 'Link cloud HTTPS không thể truy cập IP mạng Wi-Fi nội bộ của máy ảnh. Hãy chạy server local (http://localhost:3000) trên máy tính cùng Wi-Fi, dùng app iPad (.ipa), hoặc nhập 0.0.0.0:8080 để dùng chế độ Test.'
+          : baseErr
+            ? `${baseErr}. Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.`
+            : 'Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.';
         setConnError(errMsg);
         if (isReconnect) {
           showToast('Không thể kết nối lại máy ảnh Canon');
@@ -1025,7 +1034,10 @@ export default function App() {
         resolvedUrl = resolved.objectUrl;
       }
 
-      await savePhotoToDevice(resolvedUrl, photo.filename);
+      const result = await savePhotoToDevice(resolvedUrl, photo.filename);
+      if (result === 'downloaded') {
+        showToast(`Đã tải ${photo.filename}`);
+      }
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : `Không thể tải ${photo.filename}`);
     }
@@ -1260,7 +1272,7 @@ export default function App() {
   }, [showCameraPopup]);
 
   return (
-    <div className="h-[100dvh] w-screen flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="h-[100dvh] w-full flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Top Bar Contract: 3 clean zones separated by symmetric grid so Zone 2 never shifts */}
       <header className="relative z-30 h-12 mobile-landscape:h-10 wide:h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between wide:grid wide:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 wide:gap-8">
         {/* Zone 1: Brand Wordmark Button + Static Camera Name + Camera Info Popup */}

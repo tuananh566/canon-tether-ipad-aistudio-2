@@ -28,6 +28,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
   onDownloadOriginal,
 }) => {
   const {
+    stageRef,
     zoom,
     pan,
     dragging,
@@ -148,13 +149,14 @@ export const CompareStage: React.FC<CompareStageProps> = ({
 
         {/* Viewport (pinch-to-zoom + pan touch-none for iPad) */}
         <div
+          ref={stageRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onPointerLeave={onPointerUp}
           onWheel={onWheel}
           onDoubleClick={onDoubleClick}
+          onContextMenu={(e) => e.preventDefault()}
           className={`relative flex-1 min-h-0 flex items-center justify-center bg-[#08080A] overflow-hidden select-none touch-none ${
             zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
           }`}

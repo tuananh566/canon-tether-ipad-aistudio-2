@@ -22,6 +22,9 @@ def update_info_plist() -> None:
     # Configure strictly for iPadOS (UIDeviceFamily = 2) with 4-way orientation & multitasking
     data["UIDeviceFamily"] = [2]
     data["UIRequiresFullScreen"] = False
+    data["UIStatusBarStyle"] = "UIStatusBarStyleLightContent"
+    data["UIViewControllerBasedStatusBarAppearance"] = False
+    data["ITSAppUsesNonExemptEncryption"] = False
     data["UISupportedInterfaceOrientations~ipad"] = [
         "UIInterfaceOrientationPortrait",
         "UIInterfaceOrientationPortraitUpsideDown",

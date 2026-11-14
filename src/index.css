@@ -12,6 +12,14 @@
   }
 
   html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  html,
   body {
     font-family: var(--font-sans);
     background-color: #0a0a0b;
@@ -19,6 +27,22 @@
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  button,
+  a,
+  label {
+    touch-action: manipulation;
   }
 
   h1,
