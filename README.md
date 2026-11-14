@@ -1,17 +1,37 @@
-# Canon Tether Studio (iPadOS)
+# Canon Tether Studio
 
-Ứng dụng chụp ảnh tethered không dây dành riêng cho **iPad (iPadOS `.ipa`)**, kết nối trực tiếp với máy ảnh Canon qua **Canon Camera Control API (CCAPI)** bằng mạng Wi-Fi cục bộ (`CapacitorHttp`) mà không cần máy tính hay server trung gian.
+Ứng dụng chụp ảnh tethered không dây hỗ trợ **iPad (iPadOS `.ipa`)**, **điện thoại (Mobile Web)** và **máy tính**, kết nối trực tiếp với máy ảnh Canon qua **Canon Camera Control API (CCAPI)** bằng mạng Wi-Fi cục bộ (`CapacitorHttp`) mà không cần máy tính hay server trung gian.
 
 ## Tính năng chính
 
-- **Kết nối trực tiếp từ iPad tới máy ảnh Canon**: Chỉ cần nhập địa chỉ IP và Port của máy ảnh Canon (mặc định `8080`) để tự động nhận diện thiết bị qua Wi-Fi.
+- **Kết nối CCAPI trực tiếp & Popup trạng thái nhanh**:
+  - Nhập địa chỉ IP và Port của máy ảnh Canon (mặc định `8080`) để tự động nhận diện endpoint CCAPI và thông tin thân máy qua Wi-Fi.
+  - Bấm nút **Canon Tether Studio** trên thanh tiêu đề để mở popup xem trạng thái kết nối, IP/Port, firmware, kiểm tra kết nối, `Reconnect`, hoặc ngắt kết nối / đổi IP. Khi mất kết nối, nút `Reconnect` nhanh xuất hiện ở góc phải (và tự ẩn khi mở popup để tránh trùng lặp).
+  - **Chế độ Test (`0.0.0.0`, Port `8080`)**: Cho phép trải nghiệm và kiểm thử đầy đủ luồng tether ngay trên trình duyệt hoặc thiết bị mà không cần máy ảnh thật.
 - **Tether Studio**:
-  - Tự động nhận ảnh mới qua Wi-Fi ngay khi bạn bấm chụp trên máy ảnh Canon (hỗ trợ đồng bộ ảnh từ thẻ nhớ khi cần).
-  - Hỗ trợ chế độ truyền **Siêu tốc (`display`)** hoặc **Ảnh gốc HD (`main`)**, tự động nhận JPEG và bản xem trước từ file RAW (`.CR3` / `.CR2`).
-  - Lưới bố cục 1/3, phóng to/thu nhỏ, chụm 2 ngón (pinch-to-zoom) và kéo rê mượt mà trên màn hình cảm ứng iPad.
-  - **Histogram pixel thực** (RGB, Luma, R, G, B) kèm chỉ số vùng tối/sáng gắt.
-- **So sánh**: Đối chiếu song song 2 khung hình, khóa ảnh tham chiếu B, đảo vị trí, phóng to đồng bộ hoặc nạp ảnh mẫu từ iPad.
-- **Thư viện**: Tìm kiếm theo tên file, lens, ISO; lọc theo *Tất cả*, *Từ máy ảnh*, *Từ thiết bị*; chọn nhiều ảnh để lưu file gốc hàng loạt qua **iPadOS Share Sheet** (lưu thẳng vào Ảnh / Tệp) hoặc xóa nhiều ảnh cùng lúc.
+  - Tự động nhận ảnh mới qua Wi-Fi ngay khi bấm chụp trên máy ảnh Canon và đồng bộ ảnh mới từ thẻ nhớ khi cần.
+  - Phóng to / thu nhỏ, chụm 2 ngón (`pinch-to-zoom`), kéo rê (`pan`) và chạm đúp / nhấn nút đặt lại khung hình mượt mà.
+  - **Histogram pixel thực** (chuyển kênh `RGB`, `L`, `R`, `G`, `B` kèm hiệu ứng chuyển cột mượt và chỉ số vùng tối / sáng gắt) cùng bảng **thông tin ảnh & EXIF** (tên file, dung lượng, Khẩu, Tốc, ISO, Tiêu cự).
+  - Tải file gốc (hỗ trợ **iPadOS/iOS Share Sheet** hoặc lưu trực tiếp) và xoá ảnh có bước xác nhận an toàn.
+- **So sánh (A / B)**:
+  - Đối chiếu song song 2 khung hình, đồng bộ thao tác phóng to / thu nhỏ / kéo rê và đặt lại góc nhìn chung.
+  - **Khóa linh hoạt Ảnh A hoặc Ảnh B**: Chọn khóa một khung làm **Tham chiếu** để khung còn lại tự động nhận **Ảnh mới chụp** từ máy ảnh.
+  - **Đảo vị trí A ↔ B** với hiệu ứng chuyển đổi trực tiếp toàn thẻ ảnh, nạp ảnh từ thiết bị vào từng khung, và tải file gốc ngay trên khung so sánh.
+- **Thư viện**:
+  - Hiển thị lưới ảnh gọn gàng chỉ kèm tên file; chạm để mở nhanh trong **Tether Studio**.
+  - **Bấm giữ (long-press)** vào ảnh bất kỳ để bật chế độ chọn nhiều (hiển thị ô vuông chọn và thanh thao tác hàng loạt: chọn tất cả, bỏ chọn, tải file gốc hàng loạt, xoá hàng loạt).
+  - Nút **`+`** nổi ở góc dưới bên phải để thêm ảnh từ thiết bị.
+- **Dải ảnh gần đây & Chuyển tab mượt mà**:
+  - Hiệu ứng chuyển tab trượt theo hướng giữa **Tether Studio**, **So sánh**, và **Thư viện**.
+  - Dải ảnh gần đây bên dưới hiển thị mặc định trên tablet, máy tính và mobile dọc; mặc định thu gọn trên mobile ngang, và luôn có **nút mũi tên phía dưới để chạm hoặc kéo lên/xuống** đóng mở ở mọi chế độ.
+- **Giao diện thích ứng theo thiết bị & hướng màn hình**:
+  - **Mobile dọc & iPad dọc**: Thanh 3 tab điều hướng đặt xuống đáy màn hình; Histogram và Thông tin ảnh xếp ngang 2 cột; nút tải và xoá ở **Tether Studio** hiển thị dạng nút vuông chỉ icon ở góc dưới bên phải preview. (Trên mobile ẩn tên máy ảnh ở tiêu đề, trên iPad dọc vẫn giữ tên máy ảnh tại tab **Tether Studio**.)
+  - **Mobile ngang**: Chỉ hiển thị vùng preview tối đa trên màn hình, dải ảnh gần đây thu gọn với nút mũi tên kéo ra vào phía dưới.
+  - **iPad ngang & Máy tính**: Giao diện thanh điều hướng trên đầu và cột Histogram / thông tin / thao tác bên phải đầy đủ.
+- **Phím tắt tiện ích**:
+  - `←` / `→`: Chuyển qua lại giữa các ảnh trong dải ảnh gần đây (hoạt động ở mọi chế độ).
+  - `=`: Mô phỏng chụp ảnh mới từ máy ảnh *(chỉ hoạt động ở Test Mode `0.0.0.0:8080`)*.
+  - `` ` ``: Mô phỏng mất kết nối máy ảnh *(chỉ hoạt động ở Test Mode `0.0.0.0:8080`)*.
 
 ## Các dòng máy ảnh Canon hỗ trợ CCAPI
 
@@ -21,7 +41,7 @@
 
 ## Build file `.ipa` cho iPad qua Codemagic hoặc GitHub Actions
 
-Dự án được đóng gói bằng **Capacitor** dành riêng cho **iPadOS (`TARGETED_DEVICE_FAMILY=2`)**:
+Dự án hỗ trợ chạy Web (`npm run dev` / `npm run build`) và đóng gói bằng **Capacitor** cho **iPadOS (`TARGETED_DEVICE_FAMILY=2`)**:
 
 ### Cách 1: Build trên Codemagic (`codemagic.yaml`)
 1. Đẩy mã nguồn (bao gồm file `codemagic.yaml` ở thư mục gốc) lên repository GitHub.
