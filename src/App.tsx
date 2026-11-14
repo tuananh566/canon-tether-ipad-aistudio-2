@@ -1375,19 +1375,26 @@ export default function App() {
           })}
         </nav>
 
-        {/* Zone 3: 1 Primary Action */}
+        {/* Zone 3: 1 Primary Action (hidden while camera connection popup is open so Reconnect isn't duplicated) */}
         <div className="justify-self-end shrink-0">
-          {isAppUnlocked && connStatus !== 'connected' && (
-            <button
-              type="button"
-              onClick={handleReconnectCcapi}
-              disabled={connStatus === 'connecting'}
-              className="inline-flex items-center gap-1.5 wide:gap-2 px-3 wide:px-4 py-1.5 wide:py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${connStatus === 'connecting' ? 'animate-spin' : ''}`} />
-              <span>{connStatus === 'connecting' ? 'Đang Reconnect...' : 'Reconnect'}</span>
-            </button>
-          )}
+          <AnimatePresence>
+            {isAppUnlocked && connStatus !== 'connected' && !showCameraPopup && (
+              <motion.button
+                key="header-reconnect-btn"
+                type="button"
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+                onClick={handleReconnectCcapi}
+                disabled={connStatus === 'connecting'}
+                className="inline-flex items-center gap-1.5 wide:gap-2 px-3 wide:px-4 py-1.5 wide:py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${connStatus === 'connecting' ? 'animate-spin' : ''}`} />
+                <span>{connStatus === 'connecting' ? 'Đang Reconnect...' : 'Reconnect'}</span>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
