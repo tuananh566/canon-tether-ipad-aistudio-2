@@ -26,7 +26,7 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
   onClose,
   embedded = false,
 }) => {
-  const [channel, setChannel] = useState<ChannelMode>('RGB');
+  const [channel, setChannel] = useState<ChannelMode>('LUMA');
   const [minimized, setMinimized] = useState(false);
   const [data, setData] = useState<HistogramBuckets | null>(null);
 
@@ -128,7 +128,7 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
 
         {!minimized && (
           <div className="flex items-center gap-0.5 bg-white/5 rounded p-0.5 shrink-0">
-            {(['RGB', 'LUMA', 'R', 'G', 'B'] as ChannelMode[]).map((mode) => (
+            {(['LUMA', 'RGB', 'R', 'G', 'B'] as ChannelMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"

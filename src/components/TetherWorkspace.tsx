@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Check, Download, RotateCcw, Trash2, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Aperture, Check, ChevronRight, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { CanvasHistogram } from './CanvasHistogram';
 import { usePinchPan } from '../utils/usePinchPan';
 import type { TetherPhoto } from '../types/tether';
@@ -16,6 +16,9 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
   onDeletePhoto,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isRightRailOpen, setIsRightRailOpen] = useState(true);
+  const railDragStartXRef = useRef<number | null>(null);
+  const railDraggedRef = useRef(false);
 
   useEffect(() => {
     setConfirmDelete(false);
@@ -147,14 +150,81 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
         </div>
       </main>
 
-      {/* Right Camera Control Rail (Desktop/iPad Landscape) / Horizontal Histogram + Info Strip (Mobile Portrait & iPad Portrait) / Hidden in Mobile Landscape */}
-      <aside className="mobile-landscape:hidden w-full wide:w-72 lg:w-76 shrink-0 border-t wide:border-t-0 wide:border-l border-white/10 bg-[#101013] p-2.5 wide:p-4 wide:overflow-y-auto flex flex-col justify-between gap-4">
-        {/* Mobile & iPad Portrait: side-by-side Histogram & File Info; Desktop/iPad Landscape: stacked vertically */}
-        <div
-          className={`${
-            selectedPhoto ? 'grid grid-cols-2 items-stretch gap-2 sm:gap-3' : 'block'
-          } wide:flex wide:flex-col wide:gap-3`}
+      {/* Pull/Toggle Arrow Handle for Right Rail (Desktop & iPad Landscape) */}
+      <div className="hidden wide:flex relative z-20 shrink-0 w-6 border-l border-white/10 bg-[#0E0E11] items-center justify-center">
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            railDragStartXRef.current = e.clientX;
+            railDraggedRef.current = false;
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              /* ignore */
+            }
+          }}
+          onPointerMove={(e) => {
+            if (railDragStartXRef.current === null) return;
+            const dx = e.clientX - railDragStartXRef.current;
+            if (dx > 14 && isRightRailOpen) {
+              setIsRightRailOpen(false);
+              railDraggedRef.current = true;
+              railDragStartXRef.current = null;
+            } else if (dx < -14 && !isRightRailOpen) {
+              setIsRightRailOpen(true);
+              railDraggedRef.current = true;
+              railDragStartXRef.current = null;
+            }
+          }}
+          onPointerUp={(e) => {
+            if (railDragStartXRef.current !== null && !railDraggedRef.current) {
+              setIsRightRailOpen((v) => !v);
+            }
+            railDragStartXRef.current = null;
+            try {
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }
+            } catch {
+              /* ignore */
+            }
+          }}
+          onPointerCancel={() => {
+            railDragStartXRef.current = null;
+          }}
+          onClick={(e) => {
+            if (e.detail === 0) {
+              setIsRightRailOpen((v) => !v);
+            }
+          }}
+          aria-expanded={isRightRailOpen}
+          aria-label={isRightRailOpen ? 'Thu gọn bảng thông số' : 'Mở bảng thông số'}
+          title={isRightRailOpen ? 'Thu gọn bảng thông số' : 'Mở bảng thông số'}
+          className="w-full h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/[0.03] transition-colors touch-none select-none cursor-pointer"
         >
+          <ChevronRight
+            className={`w-4 h-4 transition-transform duration-200 ${
+              isRightRailOpen ? '' : 'rotate-180'
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Right Camera Control Rail (Desktop/iPad Landscape) / Horizontal Histogram + Info Strip (Mobile Portrait & iPad Portrait) / Hidden in Mobile Landscape */}
+      <aside
+        className={`mobile-landscape:hidden shrink-0 border-t wide:border-t-0 border-white/10 bg-[#101013] overflow-hidden transition-[width,opacity] duration-[250ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          isRightRailOpen
+            ? 'w-full wide:w-72 lg:w-76 wide:border-l wide:opacity-100'
+            : 'w-full wide:w-0 wide:border-l-0 wide:opacity-0 wide:pointer-events-none'
+        }`}
+      >
+        <div className="w-full wide:w-72 lg:w-76 wide:h-full p-2.5 wide:p-4 wide:overflow-y-auto flex flex-col justify-between gap-4">
+          {/* Mobile & iPad Portrait: side-by-side Histogram & File Info; Desktop/iPad Landscape: stacked vertically */}
+          <div
+            className={`${
+              selectedPhoto ? 'grid grid-cols-2 items-stretch gap-2 sm:gap-3' : 'block'
+            } wide:flex wide:flex-col wide:gap-3`}
+          >
           {selectedPhoto && (
             <div className="min-w-0">
               <CanvasHistogram imageUrl={selectedPhoto.url} embedded />
@@ -163,6 +233,13 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
 
           {/* Camera File Info */}
           <div className="min-w-0 rounded-xl border border-white/10 bg-[#151519] p-2.5 wide:p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5 wide:gap-2 mb-1.5 wide:mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-200 min-w-0">
+                <Aperture className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span className="truncate">Thông số ảnh</span>
+              </div>
+            </div>
+
             {selectedPhoto ? (
               <div className="space-y-1.5 wide:space-y-2">
                 <div className="flex items-center justify-between gap-1.5 wide:gap-2 text-[10px] sm:text-[11px] font-mono tabular-nums">
@@ -198,6 +275,16 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
                       {selectedPhoto.exif.focalLength}
                     </span>
                   </div>
+                </div>
+
+                <div className="pt-1 border-t border-white/5 flex items-center justify-between gap-2 text-[10px] sm:text-[11px] font-mono min-w-0">
+                  <span className="text-zinc-500 shrink-0">Lens</span>
+                  <span
+                    className="text-zinc-200 truncate text-right"
+                    title={selectedPhoto.exif.lens}
+                  >
+                    {selectedPhoto.exif.lens || '—'}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -253,6 +340,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
               </button>
             )
           )}
+          </div>
         </div>
       </aside>
     </div>
