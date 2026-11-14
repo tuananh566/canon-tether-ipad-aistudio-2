@@ -228,7 +228,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
                 {connError && (
                   <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3.5 py-2.5 text-xs text-rose-300 leading-relaxed">
-                    {connError.replace(/^failed to fetch\.?\s*/i, '') ||
+                    {connError.replace(/^(?:failed to fetch|fetch failed)\.?\s*/i, '') ||
                       'Hãy đảm bảo máy ảnh Canon đã bật Camera Control API và dùng chung mạng Wi-Fi.'}
                   </div>
                 )}

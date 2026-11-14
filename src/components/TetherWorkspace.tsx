@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Aperture, Check, ChevronRight, Download, RotateCcw, Trash2, X } from 'lucide-react';
+import {
+  Aperture,
+  Camera,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  RotateCcw,
+  Trash2,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { CanvasHistogram } from './CanvasHistogram';
 import { usePinchPan } from '../utils/usePinchPan';
 import type { TetherPhoto } from '../types/tether';
@@ -8,15 +19,24 @@ interface TetherWorkspaceProps {
   selectedPhoto: TetherPhoto | null;
   onDownloadOriginal: (photo: TetherPhoto) => void;
   onDeletePhoto: (id: string) => void;
+  isTestMode?: boolean;
+  isTestConnected?: boolean;
+  onSimulateCapture?: () => void;
+  onSimulateDisconnect?: () => void;
 }
 
 export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
   selectedPhoto,
   onDownloadOriginal,
   onDeletePhoto,
+  isTestMode = false,
+  isTestConnected = true,
+  onSimulateCapture,
+  onSimulateDisconnect,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isRightRailOpen, setIsRightRailOpen] = useState(true);
+  const [testPopupOpen, setTestPopupOpen] = useState(true);
   const railDragStartXRef = useRef<number | null>(null);
   const railDraggedRef = useRef(false);
 
@@ -93,6 +113,76 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
             >
               <RotateCcw className="w-4 h-4 shrink-0" />
             </button>
+          )}
+
+          {/* Bottom-left Test Mode Popup (Capture & Disconnect Simulation) */}
+          {isTestMode && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 z-20"
+            >
+              {testPopupOpen ? (
+                <div className="w-44 sm:w-52 rounded-xl bg-[#101013]/92 backdrop-blur-md border border-white/15 p-2.5 shadow-2xl space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isTestConnected ? 'bg-emerald-400' : 'bg-rose-400'
+                        }`}
+                      />
+                      <span>Chế độ Test</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTestPopupOpen(false)}
+                      aria-label="Thu gọn popup Test"
+                      title="Thu gọn"
+                      className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      disabled={!isTestConnected}
+                      onClick={() => onSimulateCapture?.()}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5 shrink-0" />
+                      <span>Nhận ảnh chụp</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!isTestConnected}
+                      onClick={() => onSimulateDisconnect?.()}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-white/15 bg-zinc-800/90 hover:bg-zinc-700/80 text-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      <WifiOff className="w-3.5 h-3.5 shrink-0" />
+                      <span>{isTestConnected ? 'Ngắt kết nối' : 'Đã mất kết nối'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTestPopupOpen(true)}
+                  aria-label="Mở popup Test"
+                  title="Mở điều khiển Test"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#101013]/92 backdrop-blur-md border border-white/15 text-xs font-mono text-zinc-200 hover:text-white hover:bg-[#1A1A1F] shadow-xl transition-colors cursor-pointer"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      isTestConnected ? 'bg-emerald-400' : 'bg-rose-400'
+                    }`}
+                  />
+                  <span>Test</span>
+                </button>
+              )}
+            </div>
           )}
 
           {/* Mobile & iPad Portrait: Square icon-only Download & Delete buttons at bottom-right of preview */}

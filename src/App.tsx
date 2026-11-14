@@ -70,7 +70,7 @@ function formatConnectionErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof Error) || !err.message.trim()) return fallback;
   const msg = err.message.trim();
   if (
-    /(failed to fetch|load failed|networkerror|request timed out|timed out|aborted|hết thời gian phản hồi|could not connect|connection was lost|appears to be offline|hostname could not be found|nsurlerrordomain|econnrefused|etimedout|ehostunreach|network request failed)/i.test(
+    /(failed to fetch|fetch failed|load failed|networkerror|request timed out|timed out|aborted|hết thời gian phản hồi|could not connect|connection was lost|appears to be offline|hostname could not be found|nsurlerrordomain|econnrefused|econnreset|etimedout|ehostunreach|enotfound|eai_again|socket hang up|network request failed)/i.test(
       msg,
     )
   ) {
@@ -303,10 +303,23 @@ export default function App() {
     });
   }, []);
 
+  const handleChangeIp = useCallback((ip: string) => {
+    setCameraIp(ip);
+    setConnError(null);
+    setConnStatus((prev) => (prev === 'error' ? 'disconnected' : prev));
+  }, []);
+
+  const handleChangePort = useCallback((port: string) => {
+    setCameraPort(port);
+    setConnError(null);
+    setConnStatus((prev) => (prev === 'error' ? 'disconnected' : prev));
+  }, []);
+
   const handleSelectRecentEndpoint = useCallback((ip: string, port: string) => {
     setCameraIp(ip);
     setCameraPort(port);
     setConnError(null);
+    setConnStatus((prev) => (prev === 'error' ? 'disconnected' : prev));
   }, []);
 
   const handleRemoveRecentEndpoint = useCallback((ip: string, port: string) => {
@@ -952,7 +965,19 @@ export default function App() {
     showToast(`Đã nhận ${filename} từ máy ảnh Canon`);
   }, [showToast]);
 
-  // ── Keyboard Shortcuts (= = Simulate Capture in Test Mode, C = Compare, G = Gallery, ` = Simulate Disconnect in Test Mode) ──
+  const isTestMode =
+    mode === 'simulator' &&
+    cameraIp.trim() === '0.0.0.0' &&
+    (cameraPort.trim() || '8080') === '8080';
+
+  const simulateDisconnect = useCallback(() => {
+    heartbeatFailuresRef.current = 0;
+    setConnStatus('error');
+    setConnError('Mất kết nối Wi-Fi với máy ảnh Canon');
+    showToast('Mất kết nối với máy ảnh Canon');
+  }, [showToast]);
+
+  // ── Keyboard Shortcuts (ArrowLeft/ArrowRight, C = Compare, G = Gallery) ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!isAppUnlocked) return;
@@ -961,23 +986,7 @@ export default function App() {
         return;
       }
 
-      const isTestMode =
-        mode === 'simulator' &&
-        cameraIp.trim() === '0.0.0.0' &&
-        (cameraPort.trim() || '8080') === '8080';
-
-      if ((e.key === '=' || (e.code === 'Equal' && !e.shiftKey)) && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (!isTestMode) return;
-        e.preventDefault();
-        simulateCameraCapture();
-      } else if ((e.key === '`' || e.code === 'Backquote') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (!isTestMode) return;
-        e.preventDefault();
-        heartbeatFailuresRef.current = 0;
-        setConnStatus('error');
-        setConnError('Mất kết nối Wi-Fi với máy ảnh Canon');
-        showToast('Mất kết nối với máy ảnh Canon');
-      } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (photos.length === 0) return;
         e.preventDefault();
         const delta = e.key === 'ArrowRight' ? 1 : -1;
@@ -1024,17 +1033,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     isAppUnlocked,
-    mode,
-    cameraIp,
-    cameraPort,
     activeTab,
     activeCompareSlot,
     photos,
     selectedPhoto,
     compareA,
     compareB,
-    showToast,
-    simulateCameraCapture,
   ]);
 
   const upgradePhotoToOriginal = useCallback(
@@ -1505,8 +1509,8 @@ export default function App() {
                   connStatus={connStatus}
                   cameraIp={cameraIp}
                   cameraPort={cameraPort}
-                  onChangeIp={setCameraIp}
-                  onChangePort={setCameraPort}
+                  onChangeIp={handleChangeIp}
+                  onChangePort={handleChangePort}
                   onConnectCcapi={handleConnectCcapi}
                   onDisconnect={handleDisconnectCcapi}
                   onEnterStudio={() => setActiveTab('tether')}
@@ -1534,6 +1538,10 @@ export default function App() {
                   selectedPhoto={selectedPhoto}
                   onDownloadOriginal={handleDownloadOriginal}
                   onDeletePhoto={handleDeletePhoto}
+                  isTestMode={isTestMode}
+                  isTestConnected={connStatus === 'connected'}
+                  onSimulateCapture={simulateCameraCapture}
+                  onSimulateDisconnect={simulateDisconnect}
                 />
               </motion.div>
             )}
