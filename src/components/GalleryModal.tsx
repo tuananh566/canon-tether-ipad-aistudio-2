@@ -211,21 +211,18 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
               <CheckCheck className="w-3.5 h-3.5" />
               <span>{allFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</span>
             </button>
-            {selectedIds.size > 0 && (
+            {selectedIds.size > 0 && !allFilteredSelected && (
               <button
                 type="button"
                 onClick={() => {
                   setSelectedIds(new Set());
                   setConfirmBatchDelete(false);
                 }}
-                className="text-zinc-400 hover:text-white underline underline-offset-2 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-white/15 bg-white/5 hover:bg-white/10 text-zinc-200 transition-colors cursor-pointer"
               >
                 Bỏ chọn
               </button>
             )}
-            <span className="text-zinc-500 hidden sm:inline">
-              · Nhấn vào từng ảnh để chọn hoặc bỏ chọn
-            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
