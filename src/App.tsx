@@ -199,9 +199,22 @@ export default function App() {
   const [lockedSlot, setLockedSlot] = useState<'A' | 'B' | null>('B');
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [isFilmstripOpen, setIsFilmstripOpen] = useState(false);
+  const [isFilmstripOpen, setIsFilmstripOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return !window.matchMedia('(orientation: landscape) and (max-height: 499.98px)').matches;
+  });
   const filmstripDragStartYRef = useRef<number | null>(null);
   const filmstripDraggedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(orientation: landscape) and (max-height: 499.98px)');
+    const handleChange = () => {
+      setIsFilmstripOpen(!mq.matches);
+    };
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
   const [showCameraPopup, setShowCameraPopup] = useState(false);
 
   const seenCcapiUrlsRef = useRef(new Set<string>());
@@ -1560,12 +1573,9 @@ export default function App() {
                 transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
                 className="relative shrink-0 border-t border-white/10 bg-[#0E0E11] overflow-hidden"
               >
-                <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
-                  {photos.length} ảnh
-                </div>
               <div
                 ref={filmstripRef}
-                className="h-20 mobile-landscape:h-16 sm:h-24 wide:h-26 px-3 wide:px-4 pr-18 wide:pr-20 py-1.5 wide:py-2 flex items-center gap-2.5 wide:gap-3 overflow-x-auto"
+                className="h-20 mobile-landscape:h-16 sm:h-24 wide:h-26 px-3 wide:px-4 py-1.5 wide:py-2 flex items-center gap-2.5 wide:gap-3 overflow-x-auto"
               >
                 {photos.map((photo, index) => {
                   const isSelected = activeTab === 'tether' && selectedPhoto?.id === photo.id;
