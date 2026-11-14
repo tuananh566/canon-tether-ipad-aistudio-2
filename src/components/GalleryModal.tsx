@@ -1,12 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CheckCheck,
-  CheckSquare,
   Download,
-  Search,
+  Plus,
   Trash2,
-  Upload,
   X,
 } from 'lucide-react';
 import type { TetherPhoto } from '../types/tether';
@@ -15,9 +13,7 @@ interface GalleryModalProps {
   photos: TetherPhoto[];
   selectedId: string | null;
   onSelectPhoto: (photo: TetherPhoto) => void;
-  onDeletePhoto: (id: string) => void;
   onBatchDeletePhotos: (ids: string[]) => void;
-  onDownloadPhoto: (photo: TetherPhoto) => void;
   onBatchDownloadOriginals: (photos: TetherPhoto[]) => Promise<void>;
   onImportPhotos: (files: FileList) => void;
 }
@@ -26,34 +22,66 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
   photos,
   selectedId,
   onSelectPhoto,
-  onDeletePhoto,
   onBatchDeletePhotos,
-  onDownloadPhoto,
   onBatchDownloadOriginals,
   onImportPhotos,
 }) => {
-  const [query, setQuery] = useState('');
-  const [filterSource, setFilterSource] = useState<'all' | 'ccapi' | 'local'>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [downloadingBatch, setDownloadingBatch] = useState(false);
 
-  const filtered = useMemo(() => {
-    return photos.filter((p) => {
-      if (filterSource !== 'all' && p.source !== filterSource) return false;
-      if (query.trim()) {
-        const q = query.trim().toLowerCase();
-        return (
-          p.filename.toLowerCase().includes(q) ||
-          p.exif.lens.toLowerCase().includes(q) ||
-          p.exif.iso.toLowerCase().includes(q)
-        );
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressOriginRef.current = null;
+  };
+
+  useEffect(() => clearLongPress, []);
+
+  const startLongPress = (e: React.PointerEvent, photoId: string) => {
+    if (selectionMode || selectedIds.size > 0) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    clearLongPress();
+    longPressTriggeredRef.current = false;
+    longPressOriginRef.current = { x: e.clientX, y: e.clientY };
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null;
+      longPressOriginRef.current = null;
+      longPressTriggeredRef.current = true;
+      setSelectionMode(true);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.add(photoId);
+        return next;
+      });
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate?.(10);
+        } catch {
+          /* ignore */
+        }
       }
-      return true;
-    });
-  }, [photos, query, filterSource]);
+    }, 420);
+  };
+
+  const moveLongPress = (e: React.PointerEvent) => {
+    const origin = longPressOriginRef.current;
+    if (!origin) return;
+    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > 8) {
+      clearLongPress();
+    }
+  };
+
+  const filtered = photos;
+  const isSelectionActive = selectionMode || selectedIds.size > 0;
 
   const selectedPhotos = useMemo(
     () => photos.filter((p) => selectedIds.has(p.id)),
@@ -117,83 +145,9 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#0A0A0B]">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-white/10 bg-[#101013]">
-        <h2 className="text-lg font-semibold text-white whitespace-nowrap">Thư viện ảnh</h2>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm tên file, lens, ISO..."
-              className="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[#18181D] border border-white/10 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-rose-500 w-52"
-            />
-          </div>
-
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-[#18181D] border border-white/10">
-            {(
-              [
-                { id: 'all', label: 'Tất cả' },
-                { id: 'ccapi', label: 'Từ máy ảnh' },
-                { id: 'local', label: 'Từ thiết bị' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFilterSource(tab.id)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                  filterSource === tab.id
-                    ? 'bg-zinc-700 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (selectionMode) exitSelectionMode();
-              else setSelectionMode(true);
-            }}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap cursor-pointer ${
-              selectionMode
-                ? 'bg-rose-600/20 border-rose-500/40 text-rose-200'
-                : 'bg-[#18181D] border-white/10 text-zinc-200 hover:bg-white/10'
-            }`}
-          >
-            <CheckSquare className="w-3.5 h-3.5" />
-            <span>{selectionMode ? 'Thoát chọn nhiều' : 'Chọn nhiều'}</span>
-          </button>
-
-          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors cursor-pointer whitespace-nowrap">
-            <Upload className="w-3.5 h-3.5" />
-            <span>Thêm ảnh từ iPad</span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  onImportPhotos(e.target.files);
-                }
-                e.target.value = '';
-              }}
-            />
-          </label>
-        </div>
-      </div>
-
-      {/* Bulk Action Bar */}
-      {(selectionMode || selectedIds.size > 0) && (
+    <div className="relative flex-1 min-h-0 flex flex-col bg-[#0A0A0B]">
+      {/* Bulk Action Bar (shown after long-pressing a photo to enter selection mode) */}
+      {isSelectionActive && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5 border-b border-white/10 bg-[#15151A]">
           <div className="flex items-center gap-3 text-xs">
             <span className="font-medium text-white tabular-nums">
@@ -270,7 +224,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
             <button
               type="button"
               onClick={exitSelectionMode}
-              aria-label="Đóng thanh chọn nhiều"
+              aria-label="Đóng thanh chọn"
               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -280,12 +234,12 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24">
         {filtered.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-xl">
-            <p className="text-sm text-zinc-300 font-medium">Chưa có ảnh phù hợp</p>
+            <p className="text-sm text-zinc-300 font-medium">Chưa có ảnh nào</p>
             <p className="text-xs text-zinc-500 mt-1">
-              Chụp ảnh mới trên máy ảnh Canon hoặc tải ảnh tham chiếu từ máy.
+              Chụp ảnh mới trên máy ảnh Canon hoặc bấm nút + để thêm ảnh từ thiết bị.
             </p>
           </div>
         ) : (
@@ -297,7 +251,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
               return (
                 <div
                   key={photo.id}
-                  className={`group relative aspect-[3/2] rounded-xl bg-black border overflow-hidden transition-colors ${
+                  className={`group relative aspect-[3/2] rounded-xl bg-black border overflow-hidden transition-colors select-none ${
                     isChecked
                       ? 'border-rose-500 ring-1 ring-rose-500/50'
                       : isCurrent
@@ -307,102 +261,65 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      if (selectionMode || selectedIds.size > 0) {
+                    onPointerDown={(e) => startLongPress(e, photo.id)}
+                    onPointerMove={moveLongPress}
+                    onPointerUp={clearLongPress}
+                    onPointerCancel={clearLongPress}
+                    onPointerLeave={clearLongPress}
+                    onContextMenu={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      if (longPressTriggeredRef.current) {
+                        longPressTriggeredRef.current = false;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
+                      if (isSelectionActive) {
                         toggleSelect(photo.id);
                       } else {
                         onSelectPhoto(photo);
                       }
                     }}
-                    className="relative block w-full h-full bg-black overflow-hidden cursor-pointer"
+                    className="relative block w-full h-full bg-black overflow-hidden cursor-pointer select-none"
                   >
                     <img
                       src={photo.url}
                       alt={photo.filename}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      draggable={false}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
                     />
                   </button>
 
-                  {/* Individual selection checkbox */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!selectionMode) setSelectionMode(true);
-                      toggleSelect(photo.id);
-                    }}
-                    aria-label={isChecked ? `Bỏ chọn ${photo.filename}` : `Chọn ${photo.filename}`}
-                    className={`absolute top-2.5 right-2.5 z-10 w-6 h-6 rounded-md border backdrop-blur-md flex items-center justify-center transition-colors cursor-pointer ${
-                      isChecked
-                        ? 'bg-rose-600 border-rose-500 text-white'
-                        : 'bg-black/55 border-white/25 text-transparent hover:border-white/70'
-                    }`}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Individual selection checkbox (hidden initially; revealed after long-press) */}
+                  {isSelectionActive && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!selectionMode) setSelectionMode(true);
+                        toggleSelect(photo.id);
+                      }}
+                      aria-label={isChecked ? `Bỏ chọn ${photo.filename}` : `Chọn ${photo.filename}`}
+                      className={`absolute top-2.5 right-2.5 z-10 w-6 h-6 rounded-md border backdrop-blur-md flex items-center justify-center transition-colors cursor-pointer ${
+                        isChecked
+                          ? 'bg-rose-600 border-rose-500 text-white'
+                          : 'bg-black/55 border-white/25 text-transparent hover:border-white/70'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
-                  {/* Overlaid dark translucent filename/size box & action buttons inside photo frame */}
-                  <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex items-end justify-between gap-2">
+                  {/* Overlaid dark translucent filename badge inside photo frame */}
+                  <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex items-end justify-start">
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="pointer-events-auto min-w-0 overflow-hidden rounded-lg bg-black/65 backdrop-blur-md border border-white/15 px-2.5 py-1.5 shadow-lg"
+                      className="pointer-events-auto max-w-full overflow-hidden rounded-lg bg-black/65 backdrop-blur-md border border-white/15 px-2.5 py-1 shadow-lg"
                     >
                       <div className="text-[11px] font-mono font-medium text-zinc-100 truncate leading-tight">
                         {photo.filename}
                       </div>
-                      <div className="text-[10px] font-mono text-zinc-300/90 tabular-nums leading-tight mt-0.5 truncate">
-                        {photo.sizeLabel}
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="pointer-events-auto shrink-0 flex items-center gap-1.5"
-                    >
-                      {confirmDeleteId === photo.id ? (
-                        <div className="flex items-center gap-1 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 p-1 shadow-lg">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConfirmDeleteId(null);
-                              onDeletePhoto(photo.id);
-                            }}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-rose-600 hover:bg-rose-500 text-white transition-colors whitespace-nowrap cursor-pointer"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Xoá</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 text-[11px] rounded-md bg-white/10 hover:bg-white/20 text-zinc-200 transition-colors whitespace-nowrap cursor-pointer"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => onDownloadPhoto(photo)}
-                            aria-label={`Tải file gốc ${photo.filename}`}
-                            title="Tải file gốc"
-                            className="w-8 h-8 rounded-lg bg-black/65 backdrop-blur-md border border-white/15 text-zinc-200 hover:text-white hover:bg-black/80 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(photo.id)}
-                            aria-label={`Xoá ${photo.filename}`}
-                            title="Xoá ảnh"
-                            className="w-8 h-8 rounded-lg bg-black/65 backdrop-blur-md border border-white/15 text-zinc-200 hover:text-rose-400 hover:bg-black/80 flex items-center justify-center shadow-lg transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -411,6 +328,27 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Floating + button at bottom-right of photo area */}
+      <label
+        aria-label="Thêm ảnh từ thiết bị"
+        title="Thêm ảnh từ thiết bị"
+        className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 w-12 h-12 rounded-full bg-[#101013]/90 backdrop-blur-md hover:bg-zinc-800 active:scale-95 text-zinc-100 border border-white/25 shadow-2xl flex items-center justify-center transition-all cursor-pointer"
+      >
+        <Plus className="w-5 h-5" />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              onImportPhotos(e.target.files);
+            }
+            e.target.value = '';
+          }}
+        />
+      </label>
     </div>
   );
 };

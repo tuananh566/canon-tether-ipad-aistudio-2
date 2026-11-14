@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { CanvasHistogram } from './CanvasHistogram';
 import { usePinchPan } from '../utils/usePinchPan';
 import type { TetherPhoto } from '../types/tether';
@@ -36,7 +36,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
   const isZoomedOrPanned = zoom > 1 || pan.x !== 0 || pan.y !== 0;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+    <div className="flex-1 min-h-0 flex flex-col wide:flex-row">
       {/* Expanded Darkroom Preview Stage */}
       <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[#08080A]">
         <div
@@ -52,7 +52,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
           }`}
         >
           {selectedPhoto ? (
-            <div className="relative max-w-full max-h-full flex items-center justify-center">
+            <div className="relative w-full h-full flex items-center justify-center">
               <img
                 key={selectedPhoto.id}
                 src={selectedPhoto.url}
@@ -63,7 +63,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                   transition: dragging ? 'none' : 'transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
-                className="max-h-[calc(62dvh-160px)] md:max-h-[calc(100dvh-176px)] max-w-full w-auto h-auto object-contain rounded-sm pointer-events-none"
+                className="max-h-full max-w-full w-auto h-auto object-contain rounded-sm pointer-events-none"
               />
             </div>
           ) : (
@@ -89,21 +89,83 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
               <RotateCcw className="w-4 h-4 shrink-0" />
             </button>
           )}
+
+          {/* Mobile & iPad Portrait: Square icon-only Download & Delete buttons at bottom-right of preview */}
+          {selectedPhoto && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="wide:hidden absolute bottom-2.5 right-2.5 z-10 flex items-center gap-2"
+            >
+              <button
+                type="button"
+                onClick={() => onDownloadOriginal(selectedPhoto)}
+                aria-label="Tải file gốc"
+                title="Tải file gốc"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-rose-600/95 hover:bg-rose-500 text-white border border-white/15 shadow-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 shrink-0" />
+              </button>
+
+              {confirmDelete ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDelete(false);
+                      onDeletePhoto(selectedPhoto.id);
+                    }}
+                    aria-label="Xác nhận xoá"
+                    title="Xác nhận xoá"
+                    className="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-rose-600 hover:bg-rose-500 text-white border border-white/20 shadow-xl transition-colors cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 shrink-0" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    aria-label="Hủy xoá"
+                    title="Hủy xoá"
+                    className="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-[#101013]/90 backdrop-blur-md hover:bg-[#1A1A1F] text-zinc-100 border border-white/15 shadow-xl transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4 shrink-0" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label="Xoá ảnh này"
+                  title="Xoá ảnh này"
+                  className="w-10 h-10 inline-flex items-center justify-center rounded-lg bg-[#101013]/90 backdrop-blur-md hover:bg-[#1A1A1F] text-zinc-100 border border-white/15 shadow-xl transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4 shrink-0" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Right Camera Control Rail */}
-      <aside className="w-full md:w-72 lg:w-76 max-h-[42vh] md:max-h-none shrink-0 border-t md:border-t-0 md:border-l border-white/10 bg-[#101013] p-4 overflow-y-auto flex flex-col justify-between gap-4">
-        {/* Upper Half: Embedded Histogram & File Info */}
-        <div className="space-y-3">
-          {/* Embedded Histogram above Photo Info */}
-          <CanvasHistogram imageUrl={selectedPhoto?.url ?? null} embedded />
+      {/* Right Camera Control Rail (Desktop/iPad Landscape) / Horizontal Histogram + Info Strip (Mobile Portrait & iPad Portrait) / Hidden in Mobile Landscape */}
+      <aside className="mobile-landscape:hidden w-full wide:w-72 lg:w-76 shrink-0 border-t wide:border-t-0 wide:border-l border-white/10 bg-[#101013] p-2.5 wide:p-4 wide:overflow-y-auto flex flex-col justify-between gap-4">
+        {/* Mobile & iPad Portrait: side-by-side Histogram & File Info; Desktop/iPad Landscape: stacked vertically */}
+        <div
+          className={`${
+            selectedPhoto ? 'grid grid-cols-2 items-stretch gap-2 sm:gap-3' : 'block'
+          } wide:flex wide:flex-col wide:gap-3`}
+        >
+          {selectedPhoto && (
+            <div className="min-w-0">
+              <CanvasHistogram imageUrl={selectedPhoto.url} embedded />
+            </div>
+          )}
 
-          {/* Camera File Info below Histogram */}
-          <div className="rounded-xl border border-white/10 bg-[#151519] p-3.5">
+          {/* Camera File Info */}
+          <div className="min-w-0 rounded-xl border border-white/10 bg-[#151519] p-2.5 wide:p-3.5 flex flex-col justify-between">
             {selectedPhoto ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2 text-[11px] font-mono tabular-nums">
+              <div className="space-y-1.5 wide:space-y-2">
+                <div className="flex items-center justify-between gap-1.5 wide:gap-2 text-[10px] sm:text-[11px] font-mono tabular-nums">
                   <span className="text-zinc-200 font-medium truncate" title={selectedPhoto.filename}>
                     {selectedPhoto.filename}
                   </span>
@@ -112,7 +174,7 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs font-mono tabular-nums">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 wide:gap-y-1.5 text-[11px] sm:text-xs font-mono tabular-nums">
                   <div className="flex items-center justify-between gap-1.5">
                     <span className="text-zinc-500">Khẩu</span>
                     <span className="text-zinc-100">{selectedPhoto.exif.aperture}</span>
@@ -146,8 +208,8 @@ export const TetherWorkspace: React.FC<TetherWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Lower Half: Download Original & Delete */}
-        <div className="pt-3 border-t border-white/10 space-y-2.5">
+        {/* Lower Half (Desktop/iPad Landscape only): Download Original & Delete */}
+        <div className="hidden wide:block pt-3 border-t border-white/10 space-y-2.5">
           <button
             type="button"
             disabled={!selectedPhoto}

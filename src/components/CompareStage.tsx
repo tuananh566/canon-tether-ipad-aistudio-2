@@ -66,9 +66,9 @@ export const CompareStage: React.FC<CompareStageProps> = ({
     const cardKey = photo ? `card-${photo.id}` : 'card-empty';
     const isLocked = lockedSlot === slot;
     const roleLabel = isLocked
-      ? `Ảnh ${slot} · Tham chiếu`
+      ? 'Tham chiếu'
       : lockedSlot !== null
-        ? `Ảnh ${slot} · Ảnh mới chụp`
+        ? 'Ảnh mới chụp'
         : `Ảnh ${slot}`;
 
     return (
@@ -232,10 +232,10 @@ export const CompareStage: React.FC<CompareStageProps> = ({
       />
 
       {/* Expanded Dual Panes with Centered Two-Way Swap & Reset */}
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2.5 items-stretch">
+      <div className="flex-1 min-h-0 flex flex-col mobile-landscape:flex-row wide:flex-row gap-2.5 items-stretch">
         {renderPane('A', photoA)}
 
-        <div className="relative z-30 shrink-0 flex flex-row md:flex-col items-center justify-center gap-2">
+        <div className="relative z-30 shrink-0 flex flex-row mobile-landscape:flex-col wide:flex-col items-center justify-center gap-2">
           <button
             type="button"
             onClick={handleSwapClick}
@@ -248,7 +248,7 @@ export const CompareStage: React.FC<CompareStageProps> = ({
               transition={{ type: 'spring', stiffness: 360, damping: 24 }}
               className="inline-flex items-center justify-center"
             >
-              <ArrowLeftRight className="w-4 h-4 rotate-90 md:rotate-0 transition-transform" />
+              <ArrowLeftRight className="w-4 h-4 rotate-90 mobile-landscape:rotate-0 wide:rotate-0 transition-transform" />
             </motion.span>
           </button>
 

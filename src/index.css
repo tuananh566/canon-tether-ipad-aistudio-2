@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant wide (@media (min-width: 768px) and (min-height: 500px) and (orientation: landscape));
+@custom-variant mobile-landscape (@media (orientation: landscape) and (max-height: 499.98px));
 
 @layer base {
   :root {

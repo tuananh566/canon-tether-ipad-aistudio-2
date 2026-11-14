@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { ChevronUp, Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { CameraConnectionPopup } from './components/CameraConnectionPopup';
 import { CompareStage } from './components/CompareStage';
 import { ConnectView } from './components/ConnectView';
@@ -125,8 +125,53 @@ function parseCcapiManifest(manifest: Record<string, unknown>): CcapiEndpoints {
   };
 }
 
+const TAB_ORDER: Record<ActiveTab, number> = {
+  connect: -1,
+  tether: 0,
+  compare: 1,
+  gallery: 2,
+};
+
+const TAB_PANEL_VARIANTS = {
+  enter: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? 32 : -32,
+    scale: 0.99,
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? -32 : 32,
+    scale: 0.99,
+  }),
+};
+
+const TAB_TRANSITION = {
+  duration: 0.24,
+  ease: [0.32, 0.72, 0, 1] as const,
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('connect');
+  const [{ activeTab, tabDirection }, setTabState] = useState<{
+    activeTab: ActiveTab;
+    tabDirection: number;
+  }>({ activeTab: 'connect', tabDirection: 1 });
+  const setActiveTab = useCallback(
+    (nextOrUpdater: ActiveTab | ((prev: ActiveTab) => ActiveTab)) => {
+      setTabState((prev) => {
+        const nextTab =
+          typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.activeTab) : nextOrUpdater;
+        if (nextTab === prev.activeTab) return prev;
+        const dir = TAB_ORDER[nextTab] >= TAB_ORDER[prev.activeTab] ? 1 : -1;
+        return { activeTab: nextTab, tabDirection: dir };
+      });
+    },
+    [],
+  );
   const [mode, setMode] = useState<ConnectionMode>('ccapi');
 
   // Canon CCAPI connection state
@@ -154,6 +199,9 @@ export default function App() {
   const [lockedSlot, setLockedSlot] = useState<'A' | 'B' | null>('B');
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isFilmstripOpen, setIsFilmstripOpen] = useState(false);
+  const filmstripDragStartYRef = useRef<number | null>(null);
+  const filmstripDraggedRef = useRef(false);
   const [showCameraPopup, setShowCameraPopup] = useState(false);
 
   const seenCcapiUrlsRef = useRef(new Set<string>());
@@ -1201,9 +1249,9 @@ export default function App() {
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-[#0A0A0B] text-zinc-100 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Top Bar Contract: 3 clean zones separated by symmetric grid so Zone 2 never shifts */}
-      <header className="relative z-30 h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 sm:gap-8">
+      <header className="relative z-30 h-12 mobile-landscape:h-10 wide:h-14 shrink-0 px-4 sm:px-6 border-b border-white/10 bg-[#0E0E11] flex items-center justify-between wide:grid wide:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 wide:gap-8">
         {/* Zone 1: Brand Wordmark Button + Static Camera Name + Camera Info Popup */}
-        <div ref={cameraPopupContainerRef} className="relative justify-self-start flex items-center gap-2.5 min-w-0 max-w-full">
+        <div ref={cameraPopupContainerRef} className="relative justify-self-start flex items-center gap-2 wide:gap-2.5 min-w-0 flex-1 wide:flex-initial max-w-full">
           <button
             type="button"
             aria-expanded={isAppUnlocked ? showCameraPopup : undefined}
@@ -1215,25 +1263,34 @@ export default function App() {
                 setActiveTab('connect');
               }
             }}
-            className="text-base font-display font-bold tracking-tight text-white hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="text-sm sm:text-base font-display font-bold tracking-tight text-white hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             Canon Tether Studio
           </button>
 
           {isAppUnlocked && (
-            <div
+            <motion.div
               aria-hidden={showCameraPopup}
-              className={`flex items-center gap-2.5 min-w-0 transition-opacity duration-150 ${
-                showCameraPopup
-                  ? 'opacity-0 invisible pointer-events-none select-none'
-                  : 'opacity-100'
+              initial={false}
+              animate={{
+                opacity: showCameraPopup ? 0 : 1,
+                x: showCameraPopup ? -6 : 0,
+              }}
+              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+              className={`flex items-center gap-2 wide:gap-2.5 min-w-0 will-change-[transform,opacity] ${
+                showCameraPopup ? 'pointer-events-none select-none' : ''
               }`}
             >
               <span
-                className="hidden sm:inline-block h-4 w-px bg-white/15 shrink-0"
+                className={`${
+                  activeTab === 'tether' ? 'hidden md:inline-block' : 'hidden wide:inline-block'
+                } h-4 w-px bg-white/15 shrink-0`}
                 aria-hidden="true"
               />
-              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 min-w-0">
+              <div
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 min-w-0"
+                title={deviceInfo?.productname || 'Canon Camera'}
+              >
                 {connStatus === 'connected' ? (
                   <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 ) : connStatus === 'connecting' ? (
@@ -1242,13 +1299,14 @@ export default function App() {
                   <WifiOff className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 )}
                 <span
-                  className="truncate max-w-[100px] sm:max-w-[200px]"
-                  title={deviceInfo?.productname || 'Canon Camera'}
+                  className={`${
+                    activeTab === 'tether' ? 'hidden md:inline' : 'hidden wide:inline'
+                  } truncate max-w-[200px]`}
                 >
                   {deviceInfo?.productname || 'Canon Camera'}
                 </span>
               </div>
-            </div>
+            </motion.div>
           )}
 
           <AnimatePresence>
@@ -1270,8 +1328,8 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Zone 2: Concise single-line navigation links */}
-        <nav className="justify-self-center h-full flex items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Zone 2: Concise single-line navigation links (Desktop & iPad Landscape) */}
+        <nav className="hidden wide:flex justify-self-center h-full items-center gap-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             isAppUnlocked
               ? ([
@@ -1311,7 +1369,7 @@ export default function App() {
               type="button"
               onClick={handleReconnectCcapi}
               disabled={connStatus === 'connecting'}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 wide:gap-2 px-3 wide:px-4 py-1.5 wide:py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${connStatus === 'connecting' ? 'animate-spin' : ''}`} />
               <span>{connStatus === 'connecting' ? 'Đang Reconnect...' : 'Reconnect'}</span>
@@ -1322,75 +1380,192 @@ export default function App() {
 
       {/* Main Workspace */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {(activeTab === 'connect' || !isAppUnlocked) && (
-          <ConnectView
-            mode={mode}
-            connStatus={connStatus}
-            cameraIp={cameraIp}
-            cameraPort={cameraPort}
-            onChangeIp={setCameraIp}
-            onChangePort={setCameraPort}
-            onConnectCcapi={handleConnectCcapi}
-            onDisconnect={handleDisconnectCcapi}
-            onEnterStudio={() => setActiveTab('tether')}
-            deviceInfo={deviceInfo}
-            connError={connError}
-          />
+        <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+          <AnimatePresence mode="popLayout" initial={false} custom={tabDirection}>
+            {(!isAppUnlocked || activeTab === 'connect') && (
+              <motion.div
+                key="tab-connect"
+                custom={tabDirection}
+                variants={TAB_PANEL_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={TAB_TRANSITION}
+                className="flex-1 min-h-0 w-full h-full flex flex-col will-change-[transform,opacity]"
+              >
+                <ConnectView
+                  mode={mode}
+                  connStatus={connStatus}
+                  cameraIp={cameraIp}
+                  cameraPort={cameraPort}
+                  onChangeIp={setCameraIp}
+                  onChangePort={setCameraPort}
+                  onConnectCcapi={handleConnectCcapi}
+                  onDisconnect={handleDisconnectCcapi}
+                  onEnterStudio={() => setActiveTab('tether')}
+                  deviceInfo={deviceInfo}
+                  connError={connError}
+                />
+              </motion.div>
+            )}
+
+            {isAppUnlocked && activeTab === 'tether' && (
+              <motion.div
+                key="tab-tether"
+                custom={tabDirection}
+                variants={TAB_PANEL_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={TAB_TRANSITION}
+                className="flex-1 min-h-0 w-full h-full flex flex-col will-change-[transform,opacity]"
+              >
+                <TetherWorkspace
+                  selectedPhoto={selectedPhoto}
+                  onDownloadOriginal={handleDownloadOriginal}
+                  onDeletePhoto={handleDeletePhoto}
+                />
+              </motion.div>
+            )}
+
+            {isAppUnlocked && activeTab === 'compare' && (
+              <motion.div
+                key="tab-compare"
+                custom={tabDirection}
+                variants={TAB_PANEL_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={TAB_TRANSITION}
+                className="flex-1 min-h-0 w-full h-full flex flex-col will-change-[transform,opacity]"
+              >
+                <CompareStage
+                  photoA={compareA}
+                  photoB={compareB}
+                  activeSlot={activeCompareSlot}
+                  onSelectSlot={setActiveCompareSlot}
+                  lockedSlot={lockedSlot}
+                  onToggleLockSlot={(slot) =>
+                    setLockedSlot((curr) => (curr === slot ? null : slot))
+                  }
+                  onSwap={() => {
+                    setCompareA(compareB);
+                    setCompareB(compareA);
+                  }}
+                  onImportExternal={handleImportExternal}
+                  onDownloadOriginal={handleDownloadOriginal}
+                />
+              </motion.div>
+            )}
+
+            {isAppUnlocked && activeTab === 'gallery' && (
+              <motion.div
+                key="tab-gallery"
+                custom={tabDirection}
+                variants={TAB_PANEL_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={TAB_TRANSITION}
+                className="flex-1 min-h-0 w-full h-full flex flex-col will-change-[transform,opacity]"
+              >
+                <GalleryModal
+                  photos={photos}
+                  selectedId={selectedPhoto?.id ?? null}
+                  onSelectPhoto={(photo) => {
+                    setSelectedPhoto(photo);
+                    setActiveTab('tether');
+                  }}
+                  onBatchDeletePhotos={handleBatchDeletePhotos}
+                  onBatchDownloadOriginals={handleBatchDownloadOriginals}
+                  onImportPhotos={handleImportGalleryFiles}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Pull/Toggle Arrow Handle for Recent Photos Filmstrip (All Modes) */}
+        {isAppUnlocked && (activeTab === 'tether' || activeTab === 'compare') && (
+          <div className="relative z-20 shrink-0 h-6 mobile-landscape:h-0 border-t mobile-landscape:border-t-0 border-white/10 bg-[#0E0E11] mobile-landscape:bg-transparent flex items-center justify-center">
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                filmstripDragStartYRef.current = e.clientY;
+                filmstripDraggedRef.current = false;
+                try {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                } catch {
+                  /* ignore */
+                }
+              }}
+              onPointerMove={(e) => {
+                if (filmstripDragStartYRef.current === null) return;
+                const dy = e.clientY - filmstripDragStartYRef.current;
+                if (dy < -14 && !isFilmstripOpen) {
+                  setIsFilmstripOpen(true);
+                  filmstripDraggedRef.current = true;
+                  filmstripDragStartYRef.current = null;
+                } else if (dy > 14 && isFilmstripOpen) {
+                  setIsFilmstripOpen(false);
+                  filmstripDraggedRef.current = true;
+                  filmstripDragStartYRef.current = null;
+                }
+              }}
+              onPointerUp={(e) => {
+                if (filmstripDragStartYRef.current !== null && !filmstripDraggedRef.current) {
+                  setIsFilmstripOpen((v) => !v);
+                }
+                filmstripDragStartYRef.current = null;
+                try {
+                  if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                  }
+                } catch {
+                  /* ignore */
+                }
+              }}
+              onPointerCancel={() => {
+                filmstripDragStartYRef.current = null;
+              }}
+              onClick={(e) => {
+                if (e.detail === 0) {
+                  setIsFilmstripOpen((v) => !v);
+                }
+              }}
+              aria-expanded={isFilmstripOpen}
+              aria-label={isFilmstripOpen ? 'Thu gọn ảnh gần đây' : 'Mở ảnh gần đây'}
+              title={isFilmstripOpen ? 'Thu gọn ảnh gần đây' : 'Mở ảnh gần đây'}
+              className="w-full h-full mobile-landscape:w-auto mobile-landscape:h-6 mobile-landscape:-translate-y-full mobile-landscape:px-4 mobile-landscape:rounded-t-lg mobile-landscape:bg-[#141418]/92 mobile-landscape:backdrop-blur-md mobile-landscape:border mobile-landscape:border-b-0 mobile-landscape:border-white/15 mobile-landscape:shadow-lg text-zinc-400 hover:text-white hover:bg-white/[0.03] mobile-landscape:hover:bg-[#141418] flex items-center justify-center transition-colors touch-none select-none cursor-pointer"
+            >
+              <ChevronUp
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isFilmstripOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+          </div>
         )}
 
-        {isAppUnlocked && activeTab === 'tether' && (
-          <TetherWorkspace
-            selectedPhoto={selectedPhoto}
-            onDownloadOriginal={handleDownloadOriginal}
-            onDeletePhoto={handleDeletePhoto}
-          />
-        )}
-
-        {isAppUnlocked && activeTab === 'compare' && (
-          <CompareStage
-            photoA={compareA}
-            photoB={compareB}
-            activeSlot={activeCompareSlot}
-            onSelectSlot={setActiveCompareSlot}
-            lockedSlot={lockedSlot}
-            onToggleLockSlot={(slot) =>
-              setLockedSlot((curr) => (curr === slot ? null : slot))
-            }
-            onSwap={() => {
-              setCompareA(compareB);
-              setCompareB(compareA);
-            }}
-            onImportExternal={handleImportExternal}
-            onDownloadOriginal={handleDownloadOriginal}
-          />
-        )}
-
-        {isAppUnlocked && activeTab === 'gallery' && (
-          <GalleryModal
-            photos={photos}
-            selectedId={selectedPhoto?.id ?? null}
-            onSelectPhoto={(photo) => {
-              setSelectedPhoto(photo);
-              setActiveTab('tether');
-            }}
-            onDeletePhoto={handleDeletePhoto}
-            onBatchDeletePhotos={handleBatchDeletePhotos}
-            onDownloadPhoto={handleDownloadOriginal}
-            onBatchDownloadOriginals={handleBatchDownloadOriginals}
-            onImportPhotos={handleImportGalleryFiles}
-          />
-        )}
-
-        {/* Bottom Filmstrip (visible on Tether Studio & Compare tabs) */}
-        {isAppUnlocked &&
-          (activeTab === 'tether' || activeTab === 'compare') && (
-            <div className="relative shrink-0 border-t border-white/10 bg-[#0E0E11]">
-              <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
-                {photos.length} ảnh
-              </div>
+        {/* Bottom Filmstrip (visible on Tether Studio & Compare tabs when expanded via bottom arrow) */}
+        <AnimatePresence initial={false}>
+          {isAppUnlocked &&
+            (activeTab === 'tether' || activeTab === 'compare') &&
+            isFilmstripOpen && (
+              <motion.div
+                key="bottom-filmstrip"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                className="relative shrink-0 border-t border-white/10 bg-[#0E0E11] overflow-hidden"
+              >
+                <div className="absolute top-1.5 right-3 z-10 px-2 py-0.5 rounded bg-[#0E0E11]/90 backdrop-blur-sm border border-white/10 text-[11px] font-mono font-medium text-zinc-200 tabular-nums pointer-events-none">
+                  {photos.length} ảnh
+                </div>
               <div
                 ref={filmstripRef}
-                className="h-26 px-4 pr-20 py-2 flex items-center gap-3 overflow-x-auto"
+                className="h-20 mobile-landscape:h-16 sm:h-24 wide:h-26 px-3 wide:px-4 pr-18 wide:pr-20 py-1.5 wide:py-2 flex items-center gap-2.5 wide:gap-3 overflow-x-auto"
               >
                 {photos.map((photo, index) => {
                   const isSelected = activeTab === 'tether' && selectedPhoto?.id === photo.id;
@@ -1411,7 +1586,7 @@ export default function App() {
                       data-photo-id={photo.id}
                       type="button"
                       onClick={() => handleSelectFilmstrip(photo)}
-                      className={`relative w-28 h-20 shrink-0 rounded-lg overflow-hidden border-2 bg-black transition-colors cursor-pointer ${borderClass}`}
+                      className={`relative w-24 h-16 mobile-landscape:w-20 mobile-landscape:h-13 sm:w-28 sm:h-20 shrink-0 rounded-lg overflow-hidden border-2 bg-black transition-colors cursor-pointer ${borderClass}`}
                     >
                       <img
                         src={photo.url}
@@ -1439,13 +1614,57 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           )}
+        </AnimatePresence>
       </div>
+
+      {/* Bottom Tab Bar (Mobile & iPad Portrait): 3 title buttons anchored at the bottom of the screen */}
+      {isAppUnlocked && (
+        <nav
+          aria-label="Điều hướng chính"
+          className="wide:hidden shrink-0 h-12 mobile-landscape:h-10 sm:h-13 border-t border-white/10 bg-[#0E0E11] grid grid-cols-3 items-stretch z-20"
+        >
+          {(
+            [
+              { id: 'tether', label: 'Tether Studio' },
+              { id: 'compare', label: 'So sánh' },
+              { id: 'gallery', label: 'Thư viện' },
+            ] as const
+          ).map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                className={`relative h-full inline-flex items-center justify-center px-2 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  isActive ? 'text-white' : 'text-zinc-400 active:text-zinc-200'
+                }`}
+              >
+                <span>{item.label}</span>
+                {isActive && (
+                  <motion.span
+                    layoutId="mobile-tab-underline"
+                    transition={{ type: 'spring', stiffness: 460, damping: 34, mass: 0.8 }}
+                    className="absolute inset-x-4 top-0 h-0.5 bg-rose-500 rounded-b-full pointer-events-none"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Subtle Toast Feedback */}
       {toastMsg && (
-        <div className="fixed bottom-32 right-6 z-50 px-4 py-2.5 rounded-lg bg-[#18181D] border border-white/15 text-xs font-medium text-zinc-100 shadow-2xl">
+        <div
+          className={`fixed ${
+            isFilmstripOpen
+              ? 'bottom-36 wide:bottom-32'
+              : 'bottom-20 wide:bottom-12'
+          } mobile-landscape:bottom-14 right-4 wide:right-6 z-50 px-4 py-2.5 rounded-lg bg-[#18181D] border border-white/15 text-xs font-medium text-zinc-100 shadow-2xl`}
+        >
           {toastMsg}
         </div>
       )}

@@ -43,18 +43,27 @@ export const CameraConnectionPopup: React.FC<CameraConnectionPopupProps> = ({
   return (
     <motion.div
       key="camera-connection-popup"
-      initial={{ opacity: 0, scale: 0.86, y: -6 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.86, y: -6 }}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 0.92, y: -8 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        transition: { type: 'spring', stiffness: 360, damping: 28, mass: 0.85 },
+      }}
+      exit={{
+        opacity: 0,
+        scale: 0.94,
+        y: -6,
+        transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
+      }}
       role="dialog"
       aria-label="Thông tin kết nối máy ảnh"
-      className={`origin-top-left absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl overflow-hidden ${
+      className={`origin-top-left will-change-[transform,opacity] backdrop-blur-xl absolute left-0 top-full mt-2 z-50 w-[min(320px,calc(100vw-2rem))] rounded-xl border p-3.5 space-y-3 shadow-2xl overflow-hidden transition-colors duration-200 ${
         isConnected
-          ? 'bg-[#151519] border-white/15'
+          ? 'bg-[#151519]/95 border-white/15'
           : isReconnecting
-            ? 'bg-[#18161B] border-amber-500/35'
-            : 'bg-[#1A1215] border-rose-500/40'
+            ? 'bg-[#18161B]/95 border-amber-500/35'
+            : 'bg-[#1A1215]/95 border-rose-500/40'
       }`}
     >
       <div className="flex items-center justify-between gap-2">

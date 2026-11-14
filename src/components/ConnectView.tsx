@@ -39,17 +39,17 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-[#0A0A0B] flex items-center justify-center p-6">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-[#0A0A0B] p-4 sm:p-6 flex flex-col">
+      <div className="w-full max-w-5xl my-auto mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
         {/* Left: Primary CCAPI Connection Panel */}
-        <div className="lg:col-span-7 rounded-xl bg-[#121215] border border-white/10 p-6 sm:p-8 flex flex-col justify-between">
+        <div className="lg:col-span-7 rounded-xl bg-[#121215] border border-white/10 p-4 sm:p-8 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs font-mono text-rose-400">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+              <span className="text-[11px] sm:text-xs font-mono text-rose-400">
                 Canon Camera Control API (CCAPI)
               </span>
               <span
-                className={`inline-flex items-center gap-1.5 text-xs font-mono ${
+                className={`inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-mono shrink-0 ${
                   isConnected
                     ? 'text-emerald-400'
                     : connStatus === 'error'
@@ -74,28 +74,28 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-2">
+            <h1 className="text-xl sm:text-3xl font-bold text-white tracking-tight mt-2">
               Kết nối Wi-Fi với máy ảnh Canon
             </h1>
-            <p className="text-sm text-zinc-400 leading-relaxed mt-2">
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mt-1.5 sm:mt-2">
               Hỗ trợ toàn bộ các dòng Canon EOS R, EOS M, DSLR và PowerShot có CCAPI.
             </p>
 
             {isConnected ? (
-              <div className="mt-6 rounded-xl bg-[#18181D] border border-emerald-500/30 p-4 space-y-4">
+              <div className="mt-5 sm:mt-6 rounded-xl bg-[#18181D] border border-emerald-500/30 p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-semibold text-white">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-white truncate">
                       {deviceInfo?.productname || 'Canon EOS'}
                     </div>
-                    <div className="text-xs font-mono text-zinc-400 mt-1 tabular-nums">
+                    <div className="text-xs font-mono text-zinc-400 mt-1 tabular-nums break-all">
                       {`IP ${cameraIp}:${cameraPort} · Firmware ${deviceInfo?.firmwareversion || '1.x'}`}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                   <button
                     type="button"
                     onClick={onEnterStudio}
@@ -114,10 +114,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
+              <form onSubmit={handleSubmit} className="mt-5 sm:mt-6 space-y-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_96px] sm:grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="sm:col-span-2 min-w-0">
                     <label
                       htmlFor="ccapi-ip"
                       className="block text-xs font-medium text-zinc-300 mb-1.5"
@@ -127,14 +126,15 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     <input
                       id="ccapi-ip"
                       type="text"
+                      inputMode="decimal"
                       value={cameraIp}
                       onChange={(e) => onChangeIp(e.target.value)}
                       placeholder="192.168.1.2"
                       autoComplete="off"
-                      className="w-full px-3.5 py-2.5 text-sm font-mono rounded-lg bg-[#1A1A1F] border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
+                      className="w-full px-3 sm:px-3.5 py-2.5 text-base sm:text-sm font-mono rounded-lg bg-[#1A1A1F] border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label
                       htmlFor="ccapi-port"
                       className="block text-xs font-medium text-zinc-300 mb-1.5"
@@ -144,11 +144,12 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     <input
                       id="ccapi-port"
                       type="text"
+                      inputMode="numeric"
                       value={cameraPort}
                       onChange={(e) => onChangePort(e.target.value)}
                       placeholder="8080"
                       autoComplete="off"
-                      className="w-full px-3.5 py-2.5 text-sm font-mono rounded-lg bg-[#1A1A1F] border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
+                      className="w-full px-3 sm:px-3.5 py-2.5 text-base sm:text-sm font-mono rounded-lg bg-[#1A1A1F] border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
                     />
                   </div>
                 </div>
@@ -183,15 +184,15 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         </div>
 
         {/* Right: Setup Guide + Supported Canon Models */}
-        <div className="lg:col-span-5 rounded-xl bg-[#121215] border border-white/10 p-6 flex flex-col justify-start">
+        <div className="lg:col-span-5 rounded-xl bg-[#121215] border border-white/10 p-4 sm:p-6 flex flex-col justify-start">
           <h2 className="text-sm font-semibold text-white">
             Thiết bị Canon hỗ trợ CCAPI
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
             Bật <strong className="text-zinc-200">Menu → Wireless communication → Camera Control API</strong> và kết nối cùng mạng Wi-Fi trước khi bấm kết nối.
           </p>
 
-          <div className="mt-4 space-y-3.5">
+          <div className="mt-4 space-y-3">
             {SUPPORTED_CANON_CAMERAS.map((group) => (
               <div key={group.series} className="pb-3 border-b border-white/10 last:border-b-0 last:pb-0">
                 <div className="text-xs font-mono text-rose-400 mb-1">

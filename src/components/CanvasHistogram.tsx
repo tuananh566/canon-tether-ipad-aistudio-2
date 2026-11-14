@@ -113,24 +113,27 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
     <div
       className={
         embedded
-          ? 'w-full rounded-xl border border-white/10 bg-[#151519] p-3.5 select-none'
+          ? 'w-full h-full rounded-xl border border-white/10 bg-[#151519] p-2.5 wide:p-3.5 select-none flex flex-col justify-between'
           : 'w-64 rounded-lg border border-white/10 bg-[#101013]/92 backdrop-blur-md p-2.5 shadow-xl select-none'
       }
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-200">
-          <BarChart3 className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Histogram</span>
+      <div className="flex items-center justify-between gap-1.5 wide:gap-2 mb-1.5 wide:mb-2">
+        <div
+          title="Histogram"
+          className="flex items-center gap-1.5 text-xs font-medium text-zinc-200 min-w-0"
+        >
+          <BarChart3 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+          <span className={embedded ? 'hidden sm:inline truncate' : ''}>Histogram</span>
         </div>
 
         {!minimized && (
-          <div className="flex items-center gap-0.5 bg-white/5 rounded p-0.5">
+          <div className="flex items-center gap-0.5 bg-white/5 rounded p-0.5 shrink-0">
             {(['RGB', 'LUMA', 'R', 'G', 'B'] as ChannelMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => setChannel(mode)}
-                className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors cursor-pointer ${
+                className={`px-1 wide:px-1.5 py-0.5 text-[9px] wide:text-[10px] font-mono rounded transition-colors cursor-pointer ${
                   channel === mode
                     ? 'bg-zinc-700 text-white font-semibold'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -168,7 +171,13 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
 
       {!minimized && (
         <>
-          <div className="relative h-20 w-full rounded bg-black/60 border border-white/5 overflow-hidden px-1 pt-2 flex items-end gap-[1px]">
+          <div
+            className={
+              embedded
+                ? 'relative h-14 sm:h-16 wide:h-20 w-full rounded bg-black/60 border border-white/5 overflow-hidden px-1 pt-1.5 wide:pt-2 flex items-end gap-[1px]'
+                : 'relative h-20 w-full rounded bg-black/60 border border-white/5 overflow-hidden px-1 pt-2 flex items-end gap-[1px]'
+            }
+          >
             <div className="absolute inset-y-0 left-1/4 w-px bg-white/5 pointer-events-none" />
             <div className="absolute inset-y-0 left-1/2 w-px bg-white/10 pointer-events-none" />
             <div className="absolute inset-y-0 left-3/4 w-px bg-white/5 pointer-events-none" />
@@ -238,9 +247,15 @@ export const CanvasHistogram: React.FC<CanvasHistogramProps> = ({
             )}
           </div>
 
-          <div className="mt-1.5 flex items-center justify-between text-[11px] font-mono text-zinc-400 tabular-nums">
-            <span>Tối: {data ? `${data.shadowCrushPct}%` : '—'}</span>
-            <span>Sáng gắt: {data ? `${data.highlightClipPct}%` : '—'}</span>
+          <div
+            className={
+              embedded
+                ? 'mt-1.5 flex items-center justify-between gap-1 text-[10px] wide:text-[11px] font-mono text-zinc-400 tabular-nums'
+                : 'mt-1.5 flex items-center justify-between text-[11px] font-mono text-zinc-400 tabular-nums'
+            }
+          >
+            <span className="truncate">Tối: {data ? `${data.shadowCrushPct}%` : '—'}</span>
+            <span className="truncate">Sáng gắt: {data ? `${data.highlightClipPct}%` : '—'}</span>
           </div>
         </>
       )}
