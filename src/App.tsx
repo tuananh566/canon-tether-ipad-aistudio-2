@@ -14,6 +14,7 @@ import type {
   ConnectionMode,
   ConnectionStatus,
   PhotoExif,
+  SavedCameraEndpoint,
   TetherPhoto,
 } from './types/tether';
 
@@ -156,6 +157,40 @@ const TAB_TRANSITION = {
   ease: [0.32, 0.72, 0, 1] as const,
 };
 
+const RECENT_CAMERA_IPS_KEY = 'canon_tether_recent_ips_v1';
+const MAX_RECENT_CAMERA_IPS = 6;
+
+function loadRecentCameraEndpoints(): SavedCameraEndpoint[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_CAMERA_IPS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item): item is SavedCameraEndpoint =>
+          Boolean(item) &&
+          typeof item.ip === 'string' &&
+          item.ip.trim().length > 0 &&
+          typeof item.port === 'string' &&
+          item.port.trim().length > 0,
+      )
+      .slice(0, MAX_RECENT_CAMERA_IPS);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentCameraEndpoints(list: SavedCameraEndpoint[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(RECENT_CAMERA_IPS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore storage quota/private mode errors */
+  }
+}
+
 export default function App() {
   const [{ activeTab, tabDirection }, setTabState] = useState<{
     activeTab: ActiveTab;
@@ -176,10 +211,13 @@ export default function App() {
   const [mode, setMode] = useState<ConnectionMode>('ccapi');
 
   // Canon CCAPI connection state
+  const [recentEndpoints, setRecentEndpoints] = useState<SavedCameraEndpoint[]>(() =>
+    loadRecentCameraEndpoints(),
+  );
   const [hasUnlockedSession, setHasUnlockedSession] = useState(false);
   const [connStatus, setConnStatus] = useState<ConnectionStatus>('disconnected');
-  const [cameraIp, setCameraIp] = useState('192.168.1.2');
-  const [cameraPort, setCameraPort] = useState('8080');
+  const [cameraIp, setCameraIp] = useState(() => loadRecentCameraEndpoints()[0]?.ip || '192.168.1.2');
+  const [cameraPort, setCameraPort] = useState(() => loadRecentCameraEndpoints()[0]?.port || '8080');
   const [ccapiEndpoints, setCcapiEndpoints] = useState<CcapiEndpoints>(DEFAULT_ENDPOINTS);
   const [deviceInfo, setDeviceInfo] = useState<CcapiDeviceInfo | null>(null);
   const [connError, setConnError] = useState<string | null>(null);
@@ -242,6 +280,41 @@ export default function App() {
     setTimeout(() => {
       setToastMsg((curr) => (curr === msg ? null : curr));
     }, 3400);
+  }, []);
+
+  const recordRecentEndpoint = useCallback((ip: string, port: string, cameraName?: string) => {
+    const cleanIp = ip.trim();
+    const cleanPort = port.trim() || '8080';
+    if (!cleanIp) return;
+    setRecentEndpoints((prev) => {
+      const existing = prev.find((item) => item.ip === cleanIp && item.port === cleanPort);
+      const nextEntry: SavedCameraEndpoint = {
+        ip: cleanIp,
+        port: cleanPort,
+        cameraName: cameraName?.trim() || existing?.cameraName,
+        lastUsedAt: Date.now(),
+      };
+      const next = [
+        nextEntry,
+        ...prev.filter((item) => !(item.ip === cleanIp && item.port === cleanPort)),
+      ].slice(0, MAX_RECENT_CAMERA_IPS);
+      saveRecentCameraEndpoints(next);
+      return next;
+    });
+  }, []);
+
+  const handleSelectRecentEndpoint = useCallback((ip: string, port: string) => {
+    setCameraIp(ip);
+    setCameraPort(port);
+    setConnError(null);
+  }, []);
+
+  const handleRemoveRecentEndpoint = useCallback((ip: string, port: string) => {
+    setRecentEndpoints((prev) => {
+      const next = prev.filter((item) => !(item.ip === ip && item.port === port));
+      saveRecentCameraEndpoints(next);
+      return next;
+    });
   }, []);
 
   // ── CCAPI Proxy Helpers ──────────────────────────────────────────
@@ -526,6 +599,7 @@ export default function App() {
           productname: 'Canon EOS R5 (Test)',
           firmwareversion: '2.0.0',
         });
+        recordRecentEndpoint(normalizedIp, normalizedPort, 'Canon EOS R5 (Test)');
         setConnStatus('connected');
         setHasUnlockedSession(true);
         setLastCheckedAt(Date.now());
@@ -606,6 +680,7 @@ export default function App() {
         endpointsRef.current = ep;
         setCcapiEndpoints(ep);
         setDeviceInfo(info);
+        recordRecentEndpoint(normalizedIp, normalizedPort, info.productname || 'Canon EOS');
         setConnStatus('connected');
         setHasUnlockedSession(true);
         setLastCheckedAt(Date.now());
@@ -645,7 +720,7 @@ export default function App() {
         clearTimeout(deadlineTimer);
       }
     },
-    [callCcapiPath, cameraIp, cameraPort, showToast, syncNewestFromStorage],
+    [callCcapiPath, cameraIp, cameraPort, recordRecentEndpoint, showToast, syncNewestFromStorage],
   );
 
   const handleConnectCcapi = useCallback(() => {
@@ -1437,6 +1512,9 @@ export default function App() {
                   onEnterStudio={() => setActiveTab('tether')}
                   deviceInfo={deviceInfo}
                   connError={connError}
+                  recentEndpoints={recentEndpoints}
+                  onSelectRecentEndpoint={handleSelectRecentEndpoint}
+                  onRemoveRecentEndpoint={handleRemoveRecentEndpoint}
                 />
               </motion.div>
             )}

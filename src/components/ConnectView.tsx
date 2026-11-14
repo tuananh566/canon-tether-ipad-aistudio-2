@@ -1,7 +1,12 @@
 import React from 'react';
-import { ArrowRight, CheckCircle2, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { ArrowRight, CheckCircle2, History, Loader2, Wifi, WifiOff, X } from 'lucide-react';
 import { SUPPORTED_CANON_CAMERAS } from '../data/canonCameras';
-import type { CcapiDeviceInfo, ConnectionMode, ConnectionStatus } from '../types/tether';
+import type {
+  CcapiDeviceInfo,
+  ConnectionMode,
+  ConnectionStatus,
+  SavedCameraEndpoint,
+} from '../types/tether';
 
 interface ConnectViewProps {
   mode: ConnectionMode;
@@ -15,6 +20,9 @@ interface ConnectViewProps {
   onEnterStudio: () => void;
   deviceInfo: CcapiDeviceInfo | null;
   connError: string | null;
+  recentEndpoints: SavedCameraEndpoint[];
+  onSelectRecentEndpoint: (ip: string, port: string) => void;
+  onRemoveRecentEndpoint: (ip: string, port: string) => void;
 }
 
 export const ConnectView: React.FC<ConnectViewProps> = ({
@@ -29,6 +37,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   onEnterStudio,
   deviceInfo,
   connError,
+  recentEndpoints,
+  onSelectRecentEndpoint,
+  onRemoveRecentEndpoint,
 }) => {
   const isConnected = connStatus === 'connected';
   const isConnecting = connStatus === 'connecting';
@@ -127,12 +138,24 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       id="ccapi-ip"
                       type="text"
                       inputMode="decimal"
+                      list="recent-camera-ips"
                       value={cameraIp}
                       onChange={(e) => onChangeIp(e.target.value)}
                       placeholder="192.168.1.2"
                       autoComplete="off"
                       className="w-full px-3 sm:px-3.5 py-2.5 text-base sm:text-sm font-mono rounded-lg bg-[#1A1A1F] border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
                     />
+                    {recentEndpoints.length > 0 && (
+                      <datalist id="recent-camera-ips">
+                        {recentEndpoints.map((ep) => (
+                          <option
+                            key={`${ep.ip}:${ep.port}`}
+                            value={ep.ip}
+                            label={ep.cameraName ? `${ep.cameraName} (:${ep.port})` : `Port ${ep.port}`}
+                          />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <label
@@ -153,6 +176,55 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     />
                   </div>
                 </div>
+
+                {recentEndpoints.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
+                      <History className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Địa chỉ IP đã dùng gần đây</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {recentEndpoints.map((ep) => {
+                        const isSelected =
+                          cameraIp.trim() === ep.ip && (cameraPort.trim() || '8080') === ep.port;
+                        return (
+                          <div
+                            key={`${ep.ip}:${ep.port}`}
+                            className={`inline-flex items-center rounded-lg border transition-colors ${
+                              isSelected
+                                ? 'bg-rose-500/15 border-rose-500/50 text-white'
+                                : 'bg-[#1A1A1F] border-white/10 text-zinc-300 hover:border-white/25 hover:text-white'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => onSelectRecentEndpoint(ep.ip, ep.port)}
+                              className="inline-flex items-center gap-2 px-2.5 py-1.5 text-xs font-mono tabular-nums cursor-pointer"
+                            >
+                              <span>
+                                {`${ep.ip}:${ep.port}`}
+                              </span>
+                              {ep.cameraName && (
+                                <span className="font-sans text-[11px] text-zinc-400 truncate max-w-[140px]">
+                                  · {ep.cameraName}
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRemoveRecentEndpoint(ep.ip, ep.port)}
+                              aria-label={`Xoá gợi ý ${ep.ip}:${ep.port}`}
+                              title="Xoá khỏi gợi ý"
+                              className="pr-2 pl-1 py-1.5 text-zinc-500 hover:text-zinc-200 transition-colors cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {connError && (
                   <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-3.5 py-2.5 text-xs text-rose-300 leading-relaxed">

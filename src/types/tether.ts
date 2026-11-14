@@ -30,3 +30,10 @@ export interface CcapiDeviceInfo {
   serialnumber?: string;
   firmwareversion?: string;
 }
+
+export interface SavedCameraEndpoint {
+  ip: string;
+  port: string;
+  cameraName?: string;
+  lastUsedAt: number;
+}
