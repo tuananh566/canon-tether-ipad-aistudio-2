@@ -807,7 +807,7 @@ export default function App() {
     showToast(`Đã nhận ${filename} từ máy ảnh Canon`);
   }, [showToast]);
 
-  // ── Keyboard Shortcuts (= = Simulate Capture, C = Compare, G = Gallery, ` = Simulate Disconnect) ──
+  // ── Keyboard Shortcuts (= = Simulate Capture in Test Mode, C = Compare, G = Gallery, ` = Simulate Disconnect in Test Mode) ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!isAppUnlocked) return;
@@ -816,15 +816,59 @@ export default function App() {
         return;
       }
 
+      const isTestMode =
+        mode === 'simulator' &&
+        cameraIp.trim() === '0.0.0.0' &&
+        (cameraPort.trim() || '8080') === '8080';
+
       if ((e.key === '=' || (e.code === 'Equal' && !e.shiftKey)) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (!isTestMode) return;
         e.preventDefault();
         simulateCameraCapture();
       } else if ((e.key === '`' || e.code === 'Backquote') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (!isTestMode) return;
         e.preventDefault();
         heartbeatFailuresRef.current = 0;
         setConnStatus('error');
         setConnError('Mất kết nối Wi-Fi với máy ảnh Canon');
         showToast('Mất kết nối với máy ảnh Canon');
+      } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (photos.length === 0) return;
+        e.preventDefault();
+        const delta = e.key === 'ArrowRight' ? 1 : -1;
+        const currentPhoto =
+          activeTab === 'compare'
+            ? activeCompareSlot === 'A'
+              ? compareA
+              : compareB
+            : selectedPhoto;
+        const currentIdx = currentPhoto
+          ? photos.findIndex((p) => p.id === currentPhoto.id)
+          : -1;
+        const nextIdx =
+          currentIdx === -1
+            ? delta > 0
+              ? 0
+              : photos.length - 1
+            : Math.max(0, Math.min(photos.length - 1, currentIdx + delta));
+        const nextPhoto = photos[nextIdx];
+        if (!nextPhoto) return;
+
+        if (activeTab === 'compare') {
+          if (activeCompareSlot === 'A') setCompareA(nextPhoto);
+          else setCompareB(nextPhoto);
+        } else {
+          setSelectedPhoto(nextPhoto);
+        }
+
+        requestAnimationFrame(() => {
+          const thumbEl = filmstripRef.current?.querySelector(
+            `[data-photo-id="${CSS.escape(nextPhoto.id)}"]`,
+          );
+          if (thumbEl instanceof HTMLElement) {
+            thumbEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          }
+        });
       } else if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
         setActiveTab((t) => (t === 'compare' ? 'tether' : 'compare'));
       } else if (e.key.toLowerCase() === 'g' && !e.metaKey && !e.ctrlKey) {
@@ -833,7 +877,20 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isAppUnlocked, showToast, simulateCameraCapture]);
+  }, [
+    isAppUnlocked,
+    mode,
+    cameraIp,
+    cameraPort,
+    activeTab,
+    activeCompareSlot,
+    photos,
+    selectedPhoto,
+    compareA,
+    compareB,
+    showToast,
+    simulateCameraCapture,
+  ]);
 
   const upgradePhotoToOriginal = useCallback(
     async (photo: TetherPhoto): Promise<string> => {
@@ -1351,6 +1408,7 @@ export default function App() {
                   return (
                     <button
                       key={photo.id}
+                      data-photo-id={photo.id}
                       type="button"
                       onClick={() => handleSelectFilmstrip(photo)}
                       className={`relative w-28 h-20 shrink-0 rounded-lg overflow-hidden border-2 bg-black transition-colors cursor-pointer ${borderClass}`}
